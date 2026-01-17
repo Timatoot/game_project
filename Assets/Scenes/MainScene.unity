@@ -1315,9 +1315,9 @@ MonoBehaviour:
   aimMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  pullAcceleration: 60
+  pullAcceleration: 20
   arriveDistance: 1.2
-  dampSideways: 8
+  dampSideways: 4
 --- !u!114 &1030466292
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1344,6 +1344,8 @@ MonoBehaviour:
   collisionMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  landingSnapSpeed: 6
+  landingSnapDuration: 0.35
 --- !u!1 &1216389454
 GameObject:
   m_ObjectHideFlags: 0
