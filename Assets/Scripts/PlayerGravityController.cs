@@ -56,6 +56,8 @@ public class PlayerGravityController : MonoBehaviour
     private bool hasIdleLock;
     private Quaternion idleLockRotation;
 
+    public bool IsGrounded => isGrounded;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -240,7 +242,11 @@ public class PlayerGravityController : MonoBehaviour
             groundNormal = bestGroundNormal;
 
             // Lock gravity to what you’re standing on
-            playerUp = Vector3.Slerp(playerUp, groundNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
+            float angle = Vector3.Angle(playerUp, groundNormal);
+            if (angle > 1.0f) // degrees; try 1–3
+            {
+                playerUp = Vector3.Slerp(playerUp, groundNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
+            }
         }
 
         // Snap gravity to what we actually hit while moving into it

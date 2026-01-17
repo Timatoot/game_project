@@ -10,9 +10,9 @@ public class GravityPullGun : MonoBehaviour
     public LayerMask aimMask = ~0;
 
     [Header("Pull Tuning")]
-    public float pullAcceleration = 60f;       // how hard we pull
+    public float pullAcceleration = 20f;       // how hard we pull
     public float arriveDistance = 1.2f;        // when we consider ourselves "at" the surface
-    public float dampSideways = 8f;            // kills sideways sliding during pull
+    public float dampSideways = 4f;            // kills sideways sliding during pull
 
     private bool pulling;
     private Collider targetCollider;

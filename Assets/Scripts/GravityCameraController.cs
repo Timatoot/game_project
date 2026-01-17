@@ -28,13 +28,26 @@ public class GravityCameraController : MonoBehaviour
     public float collisionRadius = 0.25f;
     public LayerMask collisionMask = ~0;
 
-    float fpPitch;
-    float tpYaw;
-    float tpPitch;
+    [Header("Landing snap")]
+    public float landingSnapSpeed = 6f;      // higher = faster snap when you land
+    public float landingSnapDuration = 0.35f; // seconds to keep snapping after landing
 
-    // This makes third-person orbit independent of player rotation.
-    Vector3 orbitForwardRef;
-    Vector3 lastUp;
+    // FPS pitch
+    float fpPitch;
+
+    // Third person state: we store a WORLD offset from pivot to camera
+    private Vector3 tpOffset;
+    private bool tpOffsetInit;
+
+    // Track gravity-up changes
+    private Vector3 lastUp;
+
+    // Landing detection + snap timers
+    private bool wasGrounded;
+    private float tpLandSnapTimer;
+
+    private float fpLandSnapTimer;
+    private Quaternion fpLandSnapTarget;
 
     void Start()
     {
@@ -51,51 +64,24 @@ public class GravityCameraController : MonoBehaviour
         if (controller != null)
         {
             lastUp = controller.GetPlayerUp();
-            orbitForwardRef = Vector3.ProjectOnPlane(playerBody.forward, lastUp).normalized;
-            if (orbitForwardRef.sqrMagnitude < 0.0001f)
-                orbitForwardRef = Vector3.ProjectOnPlane(playerBody.right, lastUp).normalized;
+            wasGrounded = controller.IsGrounded;
         }
     }
 
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.V))
-        {
             mode = (mode == ViewMode.FirstPerson) ? ViewMode.ThirdPerson : ViewMode.FirstPerson;
-        }
 
         if (controller == null || playerBody == null) return;
 
         float mx = Input.GetAxis("Mouse X") * sensitivity;
         float my = Input.GetAxis("Mouse Y") * sensitivity;
 
-        Vector3 up = controller.GetPlayerUp();
-
         if (mode == ViewMode.FirstPerson)
-        {
-            // FPS: yaw rotates player
-            playerBody.rotation = Quaternion.AngleAxis(mx, up) * playerBody.rotation;
-
-            // FPS: pitch rotates pivot
-            fpPitch -= my;
-            fpPitch = Mathf.Clamp(fpPitch, -85f, 85f);
-            if (cameraPivot != null) cameraPivot.localRotation = Quaternion.Euler(fpPitch, 0f, 0f);
-
-            // FPS movement stays camera-relative
-            controller.moveReference = PlayerGravityController.MoveReference.Camera;
-            controller.faceCameraWhenMoving = false; // not needed in FPS
-        }
+            UpdateFirstPerson(mx, my);
         else
-        {
-            // 3rd person: camera orbits only. DO NOT rotate player here.
-            tpYaw += mx;
-            tpPitch -= my;
-            tpPitch = Mathf.Clamp(tpPitch, thirdPersonPitchMin, thirdPersonPitchMax);
-
-            // 3rd person: movement is camera-relative, and player faces camera only when moving
-            controller.moveReference = PlayerGravityController.MoveReference.Camera;
-            controller.faceCameraWhenMoving = true;
-        }
+            UpdateThirdPerson(mx, my);
     }
 
     void LateUpdate()
@@ -109,32 +95,150 @@ public class GravityCameraController : MonoBehaviour
             return;
         }
 
+        LateThirdPerson();
+    }
+
+    // -------------------------
+    // FIRST PERSON (free-look while airborne, snap on landing)
+    // -------------------------
+    void UpdateFirstPerson(float mx, float my)
+    {
         Vector3 up = controller.GetPlayerUp();
+        bool grounded = controller.IsGrounded;
 
-        // If gravity-up changed, re-project the orbit reference so controls stay sane.
-        if (Vector3.Angle(lastUp, up) > 0.5f)
+        // If gravity-up changed while airborne, cancel the parent’s “reorientation” effect on the view.
+        if (!grounded && Vector3.Angle(lastUp, up) > 0.5f && cameraPivot != null)
         {
-            orbitForwardRef = Vector3.ProjectOnPlane(orbitForwardRef, up).normalized;
-            if (orbitForwardRef.sqrMagnitude < 0.0001f)
-                orbitForwardRef = Vector3.ProjectOnPlane(playerBody.forward, up).normalized;
-
+            Quaternion R = Quaternion.FromToRotation(lastUp, up);
+            cameraPivot.rotation = Quaternion.Inverse(R) * cameraPivot.rotation;
             lastUp = up;
         }
 
+        if (grounded)
+        {
+            // Normal FPS: yaw rotates player
+            playerBody.rotation = Quaternion.AngleAxis(mx, up) * playerBody.rotation;
+        }
+        else
+        {
+            // Airborne FPS: yaw is free-look (do NOT rotate player)
+            if (cameraPivot != null)
+                cameraPivot.rotation = Quaternion.AngleAxis(mx, up) * cameraPivot.rotation;
+        }
+
+        // Pitch always applies to the pivot locally
+        fpPitch -= my;
+        fpPitch = Mathf.Clamp(fpPitch, -85f, 85f);
+        if (cameraPivot != null) cameraPivot.localRotation = Quaternion.Euler(fpPitch, 0f, 0f);
+
+        controller.moveReference = PlayerGravityController.MoveReference.Camera;
+        controller.faceCameraWhenMoving = false;
+
+        // Landing snap: rotate player to match camera forward when we touch down
+        if (grounded && !wasGrounded)
+        {
+            Vector3 camF = Vector3.ProjectOnPlane(transform.forward, up).normalized;
+            if (camF.sqrMagnitude > 0.0001f)
+            {
+                fpLandSnapTarget = Quaternion.LookRotation(camF, up);
+                fpLandSnapTimer = landingSnapDuration;
+            }
+        }
+
+        if (fpLandSnapTimer > 0f)
+        {
+            playerBody.rotation = Quaternion.Slerp(playerBody.rotation, fpLandSnapTarget, landingSnapSpeed * Time.deltaTime);
+            fpLandSnapTimer -= Time.deltaTime;
+        }
+
+        wasGrounded = grounded;
+    }
+
+    // -------------------------
+    // THIRD PERSON (free cam while airborne, snap on landing)
+    // -------------------------
+    void UpdateThirdPerson(float mx, float my)
+    {
+        Vector3 up = controller.GetPlayerUp();
+
+        // We rotate the offset directly by mouse input (free orbit)
+        if (!tpOffsetInit)
+        {
+            // tpOffset will initialize in LateThirdPerson once we know pivot for sure
+            controller.moveReference = PlayerGravityController.MoveReference.Camera;
+            controller.faceCameraWhenMoving = true;
+            return;
+        }
+
+        // Yaw: rotate offset around gravity-up
+        tpOffset = Quaternion.AngleAxis(mx, up) * tpOffset;
+
+        // Pitch: rotate offset around the current right axis
+        Vector3 right = Vector3.Cross(up, tpOffset).normalized;
+        if (right.sqrMagnitude > 0.0001f)
+            tpOffset = Quaternion.AngleAxis(my, right) * tpOffset;
+
+        // Clamp pitch to [-70, 70]
+        tpOffset = ClampOffsetPitch(tpOffset, up, thirdPersonPitchMin, thirdPersonPitchMax, distance);
+
+        controller.moveReference = PlayerGravityController.MoveReference.Camera;
+        controller.faceCameraWhenMoving = true;
+    }
+
+    void LateThirdPerson()
+    {
+        Vector3 up = controller.GetPlayerUp();
+        bool grounded = controller.IsGrounded;
+
         Vector3 pivot = playerBody.position + up * height;
 
-        // Build orbit direction from stored reference (not playerBody.forward).
-        Vector3 rightRef = Vector3.Cross(up, orbitForwardRef).normalized;
+        // Init offset once (so camera starts where it already is)
+        if (!tpOffsetInit)
+        {
+            tpOffset = transform.position - pivot;
+            if (tpOffset.sqrMagnitude < 0.001f)
+                tpOffset = -Vector3.ProjectOnPlane(playerBody.forward, up).normalized * distance;
 
-        Quaternion yawRot = Quaternion.AngleAxis(tpYaw, up);
-        Vector3 rightAfterYaw = yawRot * rightRef;
+            if (tpOffset.sqrMagnitude < 0.001f)
+                tpOffset = -playerBody.forward * distance;
 
-        Quaternion pitchRot = Quaternion.AngleAxis(tpPitch, rightAfterYaw);
+            tpOffset = tpOffset.normalized * distance;
+            tpOffset = ClampOffsetPitch(tpOffset, up, thirdPersonPitchMin, thirdPersonPitchMax, distance);
+            tpOffsetInit = true;
+        }
 
-        Vector3 baseDir = -orbitForwardRef; // yaw=0 means "behind" the initial ref
-        Vector3 camDir = (pitchRot * (yawRot * baseDir)).normalized;
+        // Detect landing and begin snap
+        if (grounded && !wasGrounded)
+            tpLandSnapTimer = landingSnapDuration;
 
-        Vector3 desiredPos = pivot + camDir * distance;
+        // While airborne: do NOTHING special (free cam, no reorientation)
+        // On landing: smoothly snap camera to behind player (in the new gravity frame)
+        if (tpLandSnapTimer > 0f)
+        {
+            Vector3 fwd = Vector3.ProjectOnPlane(playerBody.forward, up).normalized;
+            if (fwd.sqrMagnitude < 0.0001f)
+                fwd = Vector3.ProjectOnPlane(playerBody.right, up).normalized;
+
+            // Preserve current elevation (pitch) while snapping yaw behind the player
+            Vector3 dir = tpOffset.normalized;
+            float elevation = Mathf.Asin(Mathf.Clamp(Vector3.Dot(dir, up), -1f, 1f)) * Mathf.Rad2Deg;
+            elevation = Mathf.Clamp(elevation, thirdPersonPitchMin, thirdPersonPitchMax);
+
+            Vector3 behindOnPlane = (-fwd).normalized;
+            Vector3 right = Vector3.Cross(up, behindOnPlane).normalized;
+
+            Vector3 snappedDir =
+                (behindOnPlane * Mathf.Cos(elevation * Mathf.Deg2Rad) +
+                 up * Mathf.Sin(elevation * Mathf.Deg2Rad)).normalized;
+
+            Vector3 targetOffset = snappedDir * distance;
+
+            tpOffset = Vector3.Slerp(tpOffset.normalized, targetOffset.normalized, landingSnapSpeed * Time.deltaTime) * distance;
+            tpLandSnapTimer -= Time.deltaTime;
+        }
+
+        // Apply camera position from offset
+        Vector3 desiredPos = pivot + tpOffset;
 
         // Collision push-in
         Vector3 toCam = desiredPos - pivot;
@@ -150,8 +254,42 @@ public class GravityCameraController : MonoBehaviour
 
         transform.position = desiredPos;
 
-        // Always look at pivot
+        // Look at pivot with correct up
         Vector3 lookDir = (pivot - transform.position).normalized;
         transform.rotation = Quaternion.LookRotation(lookDir, up);
+
+        // Keep offset consistent after collision adjustment (prevents popping)
+        tpOffset = (transform.position - pivot);
+        if (tpOffset.sqrMagnitude > 0.001f)
+            tpOffset = tpOffset.normalized * distance;
+
+        // If gravity-up changed, don’t force the camera to rotate in-air — just update lastUp.
+        if (Vector3.Angle(lastUp, up) > 0.5f)
+            lastUp = up;
+
+        wasGrounded = grounded;
+    }
+
+    static Vector3 ClampOffsetPitch(Vector3 offset, Vector3 up, float minPitchDeg, float maxPitchDeg, float length)
+    {
+        Vector3 dir = offset.normalized;
+
+        float elevation = Mathf.Asin(Mathf.Clamp(Vector3.Dot(dir, up), -1f, 1f)) * Mathf.Rad2Deg;
+        elevation = Mathf.Clamp(elevation, minPitchDeg, maxPitchDeg);
+
+        Vector3 onPlane = Vector3.ProjectOnPlane(dir, up).normalized;
+        if (onPlane.sqrMagnitude < 0.0001f)
+        {
+            // Fallback: pick any stable direction on plane
+            onPlane = Vector3.ProjectOnPlane(Vector3.forward, up).normalized;
+            if (onPlane.sqrMagnitude < 0.0001f)
+                onPlane = Vector3.ProjectOnPlane(Vector3.right, up).normalized;
+        }
+
+        Vector3 clampedDir =
+            (onPlane * Mathf.Cos(elevation * Mathf.Deg2Rad) +
+             up * Mathf.Sin(elevation * Mathf.Deg2Rad)).normalized;
+
+        return clampedDir * length;
     }
 }
