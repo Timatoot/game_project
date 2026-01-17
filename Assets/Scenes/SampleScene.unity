@@ -119,6 +119,118 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &12314051
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 12314052}
+  - component: {fileID: 12314055}
+  - component: {fileID: 12314054}
+  - component: {fileID: 12314053}
+  m_Layer: 0
+  m_Name: Front
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &12314052
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12314051}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.679, z: 0.491}
+  m_LocalScale: {x: 0.1, y: 0.1, z: 0.3}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1497750970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &12314053
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12314051}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &12314054
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12314051}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 9875a245ac49007498213638a307faa1, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &12314055
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12314051}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -1043,6 +1155,7 @@ GameObject:
   - component: {fileID: 1030466287}
   - component: {fileID: 1030466290}
   - component: {fileID: 1030466291}
+  - component: {fileID: 1030466292}
   m_Layer: 0
   m_Name: Camera
   m_TagString: MainCamera
@@ -1190,15 +1303,47 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1030466285}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4318bfa748daf68468792d7a38fbab6a, type: 3}
+  m_Script: {fileID: 11500000, guid: 43fbefecd9ddacb4698d01c46ce98400, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GravityMouseLook
-  player: {fileID: 1497750971}
+  m_EditorClassIdentifier: Assembly-CSharp::GravityPullGun
+  controller: {fileID: 1497750971}
+  rb: {fileID: 1497750969}
+  pullKey: 101
+  maxDistance: 120
+  aimMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  pullAcceleration: 60
+  arriveDistance: 1.2
+  dampSideways: 8
+--- !u!114 &1030466292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1030466285}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef42f1f84ffd994439fed6b53f1fe196, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityCameraController
+  mode: 1
+  controller: {fileID: 1497750971}
   playerBody: {fileID: 1497750970}
+  cameraPivot: {fileID: 1216389455}
   sensitivity: 2
-  pitchClamp: 85
+  lockCursor: 1
+  thirdPersonPitchMin: -70
+  thirdPersonPitchMax: 70
+  distance: 4.5
+  height: 1.6
+  collisionRadius: 0.25
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1 &1216389454
 GameObject:
   m_ObjectHideFlags: 0
@@ -1275,7 +1420,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1497750967}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: ab3cd4dcbdb470348944f64b6b0908eb, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -1333,6 +1478,7 @@ Transform:
   m_Children:
   - {fileID: 565635090}
   - {fileID: 1216389455}
+  - {fileID: 12314052}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1497750971
@@ -1347,6 +1493,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b5e012d42a122843b7a60d30fe1f833, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerGravityController
+  moveReference: 0
+  rotateTowardMoveDirection: 1
+  turnSpeed: 10
   gravityStrength: 20
   alignToGravitySpeed: 10
   snapGravityOnImpact: 1
@@ -1358,6 +1507,10 @@ MonoBehaviour:
   airControl: 0.5
   jumpSpeed: 7
   groundedDot: 0.55
+  faceCameraWhenMoving: 0
+  faceTurnSpeed: 12
+  moveDeadzone: 0.05
+  lockYawWhenIdle: 1
   cameraTransform: {fileID: 1030466286}
 --- !u!1 &1545984050
 GameObject:

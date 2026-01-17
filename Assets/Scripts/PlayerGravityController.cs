@@ -3,6 +3,15 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
 public class PlayerGravityController : MonoBehaviour
 {
+    public enum MoveReference { Camera, Player }
+
+    [Header("Movement Reference")]
+    public MoveReference moveReference = MoveReference.Camera;
+
+    [Header("Turn Toward Movement (3rd person feel)")]
+    public bool rotateTowardMoveDirection = false;
+    public float turnSpeed = 10f;
+
     [Header("Gravity")]
     public float gravityStrength = 20f;
     public float alignToGravitySpeed = 12f;
@@ -26,6 +35,14 @@ public class PlayerGravityController : MonoBehaviour
     public float jumpSpeed = 7f;
     public float groundedDot = 0.55f; // how aligned contact normal must be with playerUp (0.55 ~ 56 degrees)
 
+    [Header("Third Person Facing")]
+    public bool faceCameraWhenMoving = false;
+    public float faceTurnSpeed = 12f;
+    public float moveDeadzone = 0.05f;
+
+    [Header("Idle Rotation Lock")]
+    public bool lockYawWhenIdle = true;
+
     public Transform cameraTransform;
 
     private Rigidbody rb;
@@ -35,6 +52,9 @@ public class PlayerGravityController : MonoBehaviour
 
     private bool isGrounded;
     private Vector3 groundNormal = Vector3.up;
+
+    private bool hasIdleLock;
+    private Quaternion idleLockRotation;
 
     void Awake()
     {
@@ -52,6 +72,23 @@ public class PlayerGravityController : MonoBehaviour
 
     void FixedUpdate()
     {
+        float x = Input.GetAxisRaw("Horizontal");
+        float z = Input.GetAxisRaw("Vertical");
+        bool idle = (x * x + z * z) < (moveDeadzone * moveDeadzone);
+
+        if (lockYawWhenIdle && faceCameraWhenMoving && idle)
+        {
+            if (!hasIdleLock)
+            {
+                hasIdleLock = true;
+                idleLockRotation = transform.rotation;
+            }
+        }
+        else
+        {
+            hasIdleLock = false;
+        }
+
         // Reset each physics step; collisions will set grounded
         isGrounded = false;
         groundNormal = playerUp;
@@ -82,29 +119,44 @@ public class PlayerGravityController : MonoBehaviour
 
     void AlignToGravity()
     {
-        // Preserve facing direction while making up = playerUp
-        Vector3 forwardOnPlane = Vector3.ProjectOnPlane(transform.forward, playerUp);
-        if (forwardOnPlane.sqrMagnitude < 0.0001f)
-            forwardOnPlane = Vector3.ProjectOnPlane(transform.right, playerUp);
+        // Choose a forward vector to preserve.
+        Vector3 forwardToKeep;
 
-        Quaternion target = Quaternion.LookRotation(forwardOnPlane.normalized, playerUp);
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, alignToGravitySpeed * Time.fixedDeltaTime);
+        if (hasIdleLock)
+        {
+            // Use locked rotation forward so camera movement can't influence it.
+            forwardToKeep = Vector3.ProjectOnPlane(idleLockRotation * Vector3.forward, playerUp);
+        }
+        else
+        {
+            forwardToKeep = Vector3.ProjectOnPlane(transform.forward, playerUp);
+        }
+
+        if (forwardToKeep.sqrMagnitude < 0.0001f)
+            forwardToKeep = Vector3.ProjectOnPlane(transform.right, playerUp);
+
+        Quaternion targetRot = Quaternion.LookRotation(forwardToKeep.normalized, playerUp);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, alignToGravitySpeed * Time.fixedDeltaTime);
     }
 
     void Move()
     {
-        if (cameraTransform == null) return;
+        if (cameraTransform == null && moveReference == MoveReference.Camera) return;
 
         float x = Input.GetAxisRaw("Horizontal");
         float z = Input.GetAxisRaw("Vertical");
 
-        Vector3 camForward = Vector3.ProjectOnPlane(cameraTransform.forward, playerUp).normalized;
-        Vector3 camRight = Vector3.ProjectOnPlane(cameraTransform.right, playerUp).normalized;
+        Transform refT = (moveReference == MoveReference.Camera) ? cameraTransform : transform;
+
+        Vector3 refForward = Vector3.ProjectOnPlane(refT.forward, playerUp).normalized;
+        Vector3 refRight   = Vector3.ProjectOnPlane(refT.right, playerUp).normalized;
 
         float speed = moveSpeed * (Input.GetKey(sprintKey) ? sprintMultiplier : 1f);
-        Vector3 desired = (camRight * x + camForward * z);
-        if (desired.sqrMagnitude > 1f) desired.Normalize();
-        desired *= speed;
+
+        Vector3 inputDir = (refRight * x + refForward * z);
+        if (inputDir.sqrMagnitude > 1f) inputDir.Normalize();
+
+        Vector3 desired = inputDir * speed;
 
         Vector3 vel = rb.linearVelocity;
         Vector3 vertical = Vector3.Project(vel, -playerUp);
@@ -114,7 +166,34 @@ public class PlayerGravityController : MonoBehaviour
         Vector3 newHorizontal = Vector3.Lerp(horizontal, desired, control * 10f * Time.fixedDeltaTime);
 
         rb.linearVelocity = newHorizontal + vertical;
+
+        // In 3rd person we usually want the character to face where they're moving,
+        // but NOT where the camera is looking.
+        if (moveReference == MoveReference.Player && rotateTowardMoveDirection)
+        {
+            if (Mathf.Abs(z) > 0.1f && inputDir.sqrMagnitude > 0.001f)
+            {
+                Quaternion target = Quaternion.LookRotation(inputDir, playerUp);
+                transform.rotation = Quaternion.Slerp(transform.rotation, target, turnSpeed * Time.fixedDeltaTime);
+            }
+        }
+
+        Vector2 moveInput = new Vector2(x, z);
+        bool hasMoveInput = moveInput.sqrMagnitude > moveDeadzone * moveDeadzone;
+
+        if (faceCameraWhenMoving && hasMoveInput && cameraTransform != null)
+        {
+            Vector3 camForward = Vector3.ProjectOnPlane(cameraTransform.forward, playerUp).normalized;
+
+            if (camForward.sqrMagnitude > 0.0001f)
+            {
+                Quaternion target = Quaternion.LookRotation(camForward, playerUp);
+                transform.rotation = Quaternion.Slerp(transform.rotation, target, faceTurnSpeed * Time.fixedDeltaTime);
+            }
+        }
+
     }
+
 
     void OnCollisionStay(Collision collision)
     {
@@ -196,6 +275,10 @@ public class PlayerGravityController : MonoBehaviour
 
         // Don’t overthink it: if we hit it, adopt it.
         playerUp = bestNormal.normalized;
+        // Kill sideways velocity relative to the surface we landed on
+        Vector3 normal = playerUp;
+        Vector3 tangent = v - Vector3.Project(v, normal); // velocity along surface
+        rb.linearVelocity = v - tangent * 0.6f; // remove surface sliding immediately
     }
 
     public void SetPlayerUp(Vector3 newUp)
