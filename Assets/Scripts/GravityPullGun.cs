@@ -65,14 +65,38 @@ public class GravityPullGun : MonoBehaviour
     {
         if (controller == null) return;
 
-        if (Physics.Raycast(transform.position, transform.forward, out RaycastHit hit, maxDistance, aimMask, QueryTriggerInteraction.Ignore))
+        if (!Physics.Raycast(transform.position, transform.forward, out RaycastHit hit,
+            maxDistance, aimMask, QueryTriggerInteraction.Ignore))
         {
-            pulling = true;
-            targetCollider = hit.collider;
-            targetPoint = hit.point;
-            targetNormal = hit.normal;
+            return;
         }
+
+        // If we're already grounded on a surface with basically the same normal, do nothing.
+        if (controller.IsGrounded)
+        {
+            float angle = Vector3.Angle(controller.GetPlayerUp(), hit.normal);
+            if (angle < 5f)
+                return;
+        }
+
+        // If we're already basically at the surface, just lock gravity and don't pull.
+        if (rb != null)
+        {
+            float dist = Vector3.Distance(rb.position, hit.point);
+            if (dist < arriveDistance * 1.5f)
+            {
+                controller.SetPlayerUp(hit.normal);
+                return;
+            }
+        }
+
+        // Start pulling
+        pulling = true;
+        targetCollider = hit.collider;
+        targetPoint = hit.point;
+        targetNormal = hit.normal;
     }
+
 
     void FinishPull()
     {

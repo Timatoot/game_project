@@ -12,6 +12,9 @@ public class PlayerGravityController : MonoBehaviour
     public bool rotateTowardMoveDirection = false;
     public float turnSpeed = 10f;
 
+    [Header("Collision Masks")]
+    public LayerMask groundMask = ~0; // which layers count as solid world
+
     [Header("Gravity")]
     public float gravityStrength = 20f;
     public float alignToGravitySpeed = 12f;
@@ -40,10 +43,17 @@ public class PlayerGravityController : MonoBehaviour
     public float faceTurnSpeed = 12f;
     public float moveDeadzone = 0.05f;
 
+    [Header("Snap Gating")]
+    public float minAirTimeToSnap = 0.08f;   // must be in the air at least this long
+    public float minImpactSpeedToSnap = 2.0f; // must hit with some speed
+    private float airTime;
+
     [Header("Idle Rotation Lock")]
     public bool lockYawWhenIdle = true;
 
     public Transform cameraTransform;
+
+    private bool jumpedThisAir;
 
     private Rigidbody rb;
     private CapsuleCollider capsule;
@@ -98,7 +108,12 @@ public class PlayerGravityController : MonoBehaviour
         ApplyCustomGravity();
         AlignToGravity();
         Move();
+
+        if (isGrounded) airTime = 0f;
+        else airTime += Time.fixedDeltaTime;
+        if (isGrounded) jumpedThisAir = false;
     }
+
 
     void Update()
     {
@@ -111,6 +126,8 @@ public class PlayerGravityController : MonoBehaviour
 
             rb.linearVelocity = v;
             rb.AddForce(playerUp * jumpSpeed, ForceMode.VelocityChange);
+            jumpedThisAir = true;
+            Debug.Log("Jumped!");
         }
     }
 
@@ -160,6 +177,22 @@ public class PlayerGravityController : MonoBehaviour
 
         Vector3 desired = inputDir * speed;
 
+        if (!isGrounded && desired.sqrMagnitude > 0.001f)
+        {
+            Vector3 dir = desired.normalized;
+
+            // Cheap wall probe: cast a small sphere forward in the desired direction
+            float probeDist = 0.25f;
+            float probeRadius = capsule.radius * 0.9f;
+            Vector3 probeOrigin = transform.position;
+
+            if (Physics.SphereCast(probeOrigin, probeRadius, dir, out RaycastHit hit, probeDist, groundMask, QueryTriggerInteraction.Ignore))
+            {
+                // Remove the component that pushes into the wall
+                desired = Vector3.ProjectOnPlane(desired, hit.normal);
+            }
+        }
+
         Vector3 vel = rb.linearVelocity;
         Vector3 vertical = Vector3.Project(vel, -playerUp);
         Vector3 horizontal = vel - vertical;
@@ -196,12 +229,11 @@ public class PlayerGravityController : MonoBehaviour
 
     }
 
-
     void OnCollisionStay(Collision collision)
     {
         // Choose best contact for grounding + snapping
         Vector3 bestGroundNormal = groundNormal;
-        float bestGroundDot = -1f;
+        float bestGroundDot = -999f;
 
         // For snapping, pick the contact we're moving into
         Vector3 v = rb.linearVelocity;
@@ -238,20 +270,45 @@ public class PlayerGravityController : MonoBehaviour
         // Set grounded if we're standing on something relative to current up
         if (bestGroundDot > groundedDot)
         {
-            isGrounded = true;
-            groundNormal = bestGroundNormal;
+            bool hasBelowContact = false;
 
-            // Lock gravity to what you’re standing on
-            float angle = Vector3.Angle(playerUp, groundNormal);
-            if (angle > 1.0f) // degrees; try 1–3
+            for (int i = 0; i < collision.contactCount; i++)
             {
-                playerUp = Vector3.Slerp(playerUp, groundNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
+                var c = collision.GetContact(i);
+
+                // Only consider contacts that match the chosen "best ground" normal
+                if (Vector3.Dot(c.normal, bestGroundNormal) < 0.95f)
+                    continue;
+
+                // Is this contact below our center, relative to current gravity?
+                Vector3 toContact = (c.point - transform.position).normalized;
+                float below = Vector3.Dot(toContact, -playerUp); // > 0 means "down" direction
+
+                if (below > 0.2f)
+                {
+                    hasBelowContact = true;
+                    break;
+                }
+            }
+
+            if (hasBelowContact)
+            {
+                isGrounded = true;
+                groundNormal = bestGroundNormal;
+
+                // Lock gravity to what you’re standing on
+                float angle = Vector3.Angle(playerUp, groundNormal);
+                if (angle > 1.0f)
+                {
+                    playerUp = Vector3.Slerp(playerUp, groundNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
+                }
             }
         }
 
         // Snap gravity to what we actually hit while moving into it
-        if (snapGravityOnImpact && speed > minSnapSpeed && bestImpactDot > 0.35f)
+        if (snapGravityOnImpact && jumpedThisAir && airTime >= minAirTimeToSnap && speed > minSnapSpeed && bestImpactDot > 0.35f)
         {
+            Debug.Log("Snapping to wall");
             playerUp = Vector3.Slerp(playerUp, bestImpactNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
         }
     }
@@ -260,11 +317,16 @@ public class PlayerGravityController : MonoBehaviour
     {
         if (!snapGravityOnImpact) return;
 
-        // Use impact direction to decide which surface we actually hit.
+        // Only snap if we were actually airborne (prevents walking into walls)
+        if (airTime < minAirTimeToSnap) return;
+
+        if (!jumpedThisAir) return;
+
         Vector3 v = rb.linearVelocity;
         if (v.sqrMagnitude < 0.01f) return;
 
-        Vector3 incoming = -v.normalized; // direction we're moving into
+        Vector3 incoming = -v.normalized;
+
         Vector3 bestNormal = playerUp;
         float bestDot = -1f;
 
@@ -279,12 +341,15 @@ public class PlayerGravityController : MonoBehaviour
             }
         }
 
-        // Don’t overthink it: if we hit it, adopt it.
+        float impactIntoSurface = Vector3.Dot(v, -bestNormal);
+        if (impactIntoSurface < minImpactSpeedToSnap) return;
+
         playerUp = bestNormal.normalized;
-        // Kill sideways velocity relative to the surface we landed on
+
+        // Reduce sliding when you land/hit
         Vector3 normal = playerUp;
-        Vector3 tangent = v - Vector3.Project(v, normal); // velocity along surface
-        rb.linearVelocity = v - tangent * 0.6f; // remove surface sliding immediately
+        Vector3 tangent = v - Vector3.Project(v, normal);
+        rb.linearVelocity = v - tangent * 0.6f;
     }
 
     public void SetPlayerUp(Vector3 newUp)
