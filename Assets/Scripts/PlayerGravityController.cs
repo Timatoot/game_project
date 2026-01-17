@@ -127,7 +127,6 @@ public class PlayerGravityController : MonoBehaviour
             rb.linearVelocity = v;
             rb.AddForce(playerUp * jumpSpeed, ForceMode.VelocityChange);
             jumpedThisAir = true;
-            Debug.Log("Jumped!");
         }
     }
 
@@ -305,50 +304,50 @@ public class PlayerGravityController : MonoBehaviour
             }
         }
 
-        // Snap gravity to what we actually hit while moving into it
-        if (snapGravityOnImpact && jumpedThisAir && airTime >= minAirTimeToSnap && speed > minSnapSpeed && bestImpactDot > 0.35f)
-        {
-            Debug.Log("Snapping to wall");
-            playerUp = Vector3.Slerp(playerUp, bestImpactNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
-        }
+        // if (snapGravityOnImpact && jumpedThisAir && airTime >= minAirTimeToSnap && speed > minSnapSpeed && bestImpactDot > 0.15f)
+        // {
+        //     Debug.Log("Snapping to wall");
+        //     playerUp = Vector3.Slerp(playerUp, bestImpactNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
+        // }
     }
 
     void OnCollisionEnter(Collision collision)
     {
         if (!snapGravityOnImpact) return;
-
-        // Only snap if we were actually airborne (prevents walking into walls)
-        if (airTime < minAirTimeToSnap) return;
-
         if (!jumpedThisAir) return;
 
-        Vector3 v = rb.linearVelocity;
-        if (v.sqrMagnitude < 0.01f) return;
+        // Use collision-provided impact velocity (more reliable than rb.linearVelocity here)
+        float relSpeed = collision.relativeVelocity.magnitude;
+        if (relSpeed < 0.2f) return; // was "too slow" – tune 0.1–0.5
 
-        Vector3 incoming = -v.normalized;
+        // Pick the contact we are moving INTO the most, using relative velocity
+        Vector3 rv = collision.relativeVelocity;
 
         Vector3 bestNormal = playerUp;
-        float bestDot = -1f;
+        float bestInto = 0f;
 
         for (int i = 0; i < collision.contactCount; i++)
         {
             Vector3 n = collision.GetContact(i).normal;
-            float d = Vector3.Dot(n, incoming);
-            if (d > bestDot)
+            float into = Vector3.Dot(rv, -n); // >0 means moving into the surface
+            if (into > bestInto)
             {
-                bestDot = d;
+                bestInto = into;
                 bestNormal = n;
             }
         }
 
-        float impactIntoSurface = Vector3.Dot(v, -bestNormal);
-        if (impactIntoSurface < minImpactSpeedToSnap) return;
+        if (bestInto < 0.2f) return; // tune; this is "into surface" based on collision
+
+        // Optional: avoid snapping to floor/ceiling
+        float upDot = Vector3.Dot(bestNormal, playerUp);
+        if (upDot > 0.75f || upDot < -0.75f) return;
 
         playerUp = bestNormal.normalized;
 
-        // Reduce sliding when you land/hit
-        Vector3 normal = playerUp;
-        Vector3 tangent = v - Vector3.Project(v, normal);
+        // Reduce slide: remove velocity along the surface using current rigidbody velocity
+        Vector3 v = rb.linearVelocity;
+        Vector3 tangent = v - Vector3.Project(v, playerUp);
         rb.linearVelocity = v - tangent * 0.6f;
     }
 
