@@ -45,11 +45,13 @@ public class PlayerGravityController : MonoBehaviour
     public float faceTurnSpeed = 12f;
     public float moveDeadzone = 0.05f;
 
+    [Header("Landing / Ground Stick")]
+    public float landingHorizontalDamp = 0.15f; // 0.15 = keep 15% of horizontal speed on landing
+    public float groundedFriction = 10f;        // only used when no move input
+
     [Header("Idle Rotation Lock")]
     public bool lockYawWhenIdle = true;
-
     public Transform cameraTransform;
-
     private bool jumpedThisAir;
     private float airTime;
 
@@ -58,6 +60,9 @@ public class PlayerGravityController : MonoBehaviour
 
     private Vector3 playerUp = Vector3.up;
 
+    private bool groundedLastStep;
+    private bool landedThisStep;
+
     private bool isGrounded;
     private Vector3 groundNormal = Vector3.up;
 
@@ -65,6 +70,9 @@ public class PlayerGravityController : MonoBehaviour
     private Quaternion idleLockRotation;
 
     public bool IsGrounded => isGrounded;
+
+    private bool wasGrounded;
+    private float lastMoveInputSqr;
 
     void Awake()
     {
@@ -84,9 +92,17 @@ public class PlayerGravityController : MonoBehaviour
 
     void FixedUpdate()
     {
+        groundedLastStep = isGrounded;  // keep last step result
+        isGrounded = false;             // will be set true by collision callbacks
+        landedThisStep = false;
+
+        groundNormal = playerUp;
+
         Vector2 move = input != null ? input.Move : Vector2.zero;
         float x = move.x;
         float z = move.y;
+
+        lastMoveInputSqr = x * x + z * z;
 
         bool idle = (x * x + z * z) < (moveDeadzone * moveDeadzone);
 
@@ -104,11 +120,24 @@ public class PlayerGravityController : MonoBehaviour
         }
 
         isGrounded = false;
+        wasGrounded = false;
         groundNormal = playerUp;
 
         ApplyCustomGravity();
         AlignToGravity();
         Move(x, z);
+
+        if (isGrounded && lastMoveInputSqr < (moveDeadzone * moveDeadzone))
+        {
+            Vector3 v = rb.linearVelocity;
+
+            // Split into vertical (along up) and horizontal (on surface)
+            Vector3 vertical = Vector3.Project(v, playerUp);
+            Vector3 horizontal = v - vertical;
+
+            horizontal = Vector3.Lerp(horizontal, Vector3.zero, groundedFriction * Time.fixedDeltaTime);
+            rb.linearVelocity = horizontal + vertical;
+        }
 
         if (isGrounded) airTime = 0f;
         else airTime += Time.fixedDeltaTime;
@@ -269,8 +298,15 @@ public class PlayerGravityController : MonoBehaviour
 
             if (hasBelowContact)
             {
+                if (!groundedLastStep && !landedThisStep)
+                {
+                    ApplyLandingBrake();
+                    landedThisStep = true;
+                }
+
                 isGrounded = true;
                 groundNormal = bestGroundNormal;
+                wasGrounded = true;
 
                 float angle = Vector3.Angle(playerUp, groundNormal);
                 if (angle > 1.0f)
@@ -313,6 +349,22 @@ public class PlayerGravityController : MonoBehaviour
         Vector3 v = rb.linearVelocity;
         Vector3 tangent = v - Vector3.Project(v, playerUp);
         rb.linearVelocity = v - tangent * 0.6f;
+    }
+
+    private void ApplyLandingBrake()
+    {
+        Vector3 v = rb.linearVelocity;
+
+        // remove velocity into the ground
+        float into = Vector3.Dot(v, -playerUp);
+        if (into > 0f) v += playerUp * into;
+
+        // damp horizontal only
+        Vector3 vertical = Vector3.Project(v, playerUp);
+        Vector3 horizontal = v - vertical;
+
+        horizontal *= landingHorizontalDamp; // e.g. 0.15f
+        rb.linearVelocity = vertical + horizontal;
     }
 
     public void SetPlayerUp(Vector3 newUp)

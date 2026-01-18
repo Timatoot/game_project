@@ -14,6 +14,18 @@ public class GravityPullGun : MonoBehaviour
     public float arriveDistance = 1.2f;
     public float dampSideways = 4f;
 
+    [Header("Pull Hop (prevents ground sliding)")]
+    public bool hopOnPull = true;
+    public float hopVelocityOverride = -1f; // -1 = use PlayerGravityController.jumpSpeed
+    public float hopGraceTime = 0.10f;      // small grace window after hop
+    private float hopTimer;
+
+    [Header("Target Filtering")]
+    public float ignoreSameSurfaceAngle = 15f;     // degrees
+    public float ignoreSameSurfaceDistance = 2.0f; // meters from player
+    public float ignoreNearFromCamera = 0.75f;     // meters from camera (prevents grabbing ground right in front)
+    public LayerMask playerMask = 6;
+
     private bool pulling;
     private Collider targetCollider;
     private Vector3 targetPoint;
@@ -54,39 +66,109 @@ public class GravityPullGun : MonoBehaviour
         Vector3 sideways = v - Vector3.Project(v, pullDir);
         rb.linearVelocity = v - sideways * Mathf.Clamp01(dampSideways * Time.fixedDeltaTime);
 
-        controller.SetPlayerUp(Vector3.Slerp(controller.GetPlayerUp(), -pullDir, 15f * Time.fixedDeltaTime));
+        if (hopTimer > 0f) hopTimer -= Time.fixedDeltaTime;
+
+        // Important: don't steer gravity while still in contact with the old ground
+        if (!controller.IsGrounded && hopTimer <= 0f)
+        {
+            controller.SetPlayerUp(Vector3.Slerp(controller.GetPlayerUp(), -pullDir, 15f * Time.fixedDeltaTime));
+        }
     }
+
 
     void TryStartPull()
     {
         if (controller == null) return;
 
-        if (!Physics.Raycast(transform.position, transform.forward, out RaycastHit hit,
-            maxDistance, aimMask, QueryTriggerInteraction.Ignore))
+        Ray ray = new Ray(transform.position, transform.forward);
+        var hits = Physics.RaycastAll(ray, maxDistance, aimMask, QueryTriggerInteraction.Ignore);
+        if (hits == null || hits.Length == 0) return;
+
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        Vector3 up = controller.GetPlayerUp();
+        Vector3 playerPos = (rb != null) ? rb.position : controller.transform.position;
+
+        RaycastHit chosen = default;
+        bool found = false;
+
+        for (int i = 0; i < hits.Length; i++)
         {
-            return;
+            var h = hits[i];
+
+            // Skip super-near hits from the camera (usually your own platform / floor)
+            if (h.distance < ignoreNearFromCamera)
+                continue;
+
+            // Skip your own colliders (if your player layer/mask setup isn’t perfect yet)
+            if (rb != null && h.rigidbody == rb)
+                continue;
+
+            // If grounded, ignore “same surface + too close” hits (this is the slide problem)
+            if (controller.IsGrounded)
+            {
+                float angle = Vector3.Angle(up, h.normal);
+                float distToPlayer = Vector3.Distance(playerPos, h.point);
+
+                if (angle < ignoreSameSurfaceAngle && distToPlayer < ignoreSameSurfaceDistance)
+                    continue;
+            }
+
+            chosen = h;
+            found = true;
+            break;
         }
 
+        if (!found) return;
+
+        // Existing logic from here onward, but use `chosen` instead of `hit`
         if (controller.IsGrounded)
         {
-            float angle = Vector3.Angle(controller.GetPlayerUp(), hit.normal);
+            float angle = Vector3.Angle(controller.GetPlayerUp(), chosen.normal);
             if (angle < 5f) return;
         }
 
         if (rb != null)
         {
-            float dist = Vector3.Distance(rb.position, hit.point);
+            float dist = Vector3.Distance(rb.position, chosen.point);
             if (dist < arriveDistance * 1.5f)
             {
-                controller.SetPlayerUp(hit.normal);
+                controller.SetPlayerUp(chosen.normal);
                 return;
             }
         }
 
         pulling = true;
-        targetCollider = hit.collider;
-        targetPoint = hit.point;
-        targetNormal = hit.normal;
+        targetCollider = chosen.collider;
+        targetPoint = chosen.point;
+        targetNormal = chosen.normal;
+
+        if (hopOnPull)
+        {
+            DoPullHop();
+        }
+    }
+
+    private void DoPullHop()
+    {
+        if (rb == null || controller == null) return;
+
+        Vector3 up = controller.GetPlayerUp();
+
+        // Use the same "takeoff speed" as your normal jump unless overridden.
+        float hopVel = (hopVelocityOverride > 0f) ? hopVelocityOverride : controller.jumpSpeed;
+
+        // Remove any downward velocity so the hop is consistent.
+        Vector3 v = rb.linearVelocity;
+        float down = Vector3.Dot(v, -up);
+        if (down > 0f) v += up * down;
+
+        // Ensure we have at least hopVel upward along current up (don't stack infinite boosts).
+        float upVel = Vector3.Dot(v, up);
+        if (upVel < hopVel) v += up * (hopVel - upVel);
+
+        rb.linearVelocity = v;
+        hopTimer = hopGraceTime;
     }
 
     void FinishPull()
