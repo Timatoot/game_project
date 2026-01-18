@@ -5,6 +5,9 @@ public class PlayerGravityController : MonoBehaviour
 {
     public enum MoveReference { Camera, Player }
 
+    [Header("Input")]
+    public GravityInput input; // Drag Player (with GravityInput) or auto-find
+
     [Header("Movement Reference")]
     public MoveReference moveReference = MoveReference.Camera;
 
@@ -13,7 +16,7 @@ public class PlayerGravityController : MonoBehaviour
     public float turnSpeed = 10f;
 
     [Header("Collision Masks")]
-    public LayerMask groundMask = ~0; // which layers count as solid world
+    public LayerMask groundMask = ~0;
 
     [Header("Gravity")]
     public float gravityStrength = 20f;
@@ -21,32 +24,26 @@ public class PlayerGravityController : MonoBehaviour
 
     [Header("Auto Snap Gravity")]
     public bool snapGravityOnImpact = true;
-    public float minSnapSpeed = 1.0f;      // must be moving at least this fast
-    public float snapSlerpSpeed = 25f;     // how fast gravity "up" turns to surface normal
+    public float minSnapSpeed = 1.0f;
+    public float snapSlerpSpeed = 25f;
 
     [Header("Movement")]
     public float moveSpeed = 6f;
 
     [Header("Sprint")]
     public float sprintMultiplier = 1.6f;
-    public KeyCode sprintKey = KeyCode.LeftShift;
 
     [Header("Air Control")]
     public float airControl = 0.5f;
 
     [Header("Jump")]
     public float jumpSpeed = 7f;
-    public float groundedDot = 0.55f; // how aligned contact normal must be with playerUp (0.55 ~ 56 degrees)
+    public float groundedDot = 0.55f;
 
     [Header("Third Person Facing")]
     public bool faceCameraWhenMoving = false;
     public float faceTurnSpeed = 12f;
     public float moveDeadzone = 0.05f;
-
-    [Header("Snap Gating")]
-    public float minAirTimeToSnap = 0.08f;   // must be in the air at least this long
-    public float minImpactSpeedToSnap = 2.0f; // must hit with some speed
-    private float airTime;
 
     [Header("Idle Rotation Lock")]
     public bool lockYawWhenIdle = true;
@@ -54,6 +51,7 @@ public class PlayerGravityController : MonoBehaviour
     public Transform cameraTransform;
 
     private bool jumpedThisAir;
+    private float airTime;
 
     private Rigidbody rb;
     private CapsuleCollider capsule;
@@ -80,12 +78,16 @@ public class PlayerGravityController : MonoBehaviour
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
+
+        if (input == null) input = GetComponent<GravityInput>();
     }
 
     void FixedUpdate()
     {
-        float x = Input.GetAxisRaw("Horizontal");
-        float z = Input.GetAxisRaw("Vertical");
+        Vector2 move = input != null ? input.Move : Vector2.zero;
+        float x = move.x;
+        float z = move.y;
+
         bool idle = (x * x + z * z) < (moveDeadzone * moveDeadzone);
 
         if (lockYawWhenIdle && faceCameraWhenMoving && idle)
@@ -101,25 +103,23 @@ public class PlayerGravityController : MonoBehaviour
             hasIdleLock = false;
         }
 
-        // Reset each physics step; collisions will set grounded
         isGrounded = false;
         groundNormal = playerUp;
 
         ApplyCustomGravity();
         AlignToGravity();
-        Move();
+        Move(x, z);
 
         if (isGrounded) airTime = 0f;
         else airTime += Time.fixedDeltaTime;
+
         if (isGrounded) jumpedThisAir = false;
     }
 
-
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
+        if (input != null && input.JumpPressed && isGrounded)
         {
-            // Remove downward velocity so jump always pops
             Vector3 v = rb.linearVelocity;
             float down = Vector3.Dot(v, -playerUp);
             if (down > 0f) v += playerUp * down;
@@ -137,18 +137,12 @@ public class PlayerGravityController : MonoBehaviour
 
     void AlignToGravity()
     {
-        // Choose a forward vector to preserve.
         Vector3 forwardToKeep;
 
         if (hasIdleLock)
-        {
-            // Use locked rotation forward so camera movement can't influence it.
             forwardToKeep = Vector3.ProjectOnPlane(idleLockRotation * Vector3.forward, playerUp);
-        }
         else
-        {
             forwardToKeep = Vector3.ProjectOnPlane(transform.forward, playerUp);
-        }
 
         if (forwardToKeep.sqrMagnitude < 0.0001f)
             forwardToKeep = Vector3.ProjectOnPlane(transform.right, playerUp);
@@ -157,19 +151,17 @@ public class PlayerGravityController : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, alignToGravitySpeed * Time.fixedDeltaTime);
     }
 
-    void Move()
+    void Move(float x, float z)
     {
         if (cameraTransform == null && moveReference == MoveReference.Camera) return;
-
-        float x = Input.GetAxisRaw("Horizontal");
-        float z = Input.GetAxisRaw("Vertical");
 
         Transform refT = (moveReference == MoveReference.Camera) ? cameraTransform : transform;
 
         Vector3 refForward = Vector3.ProjectOnPlane(refT.forward, playerUp).normalized;
-        Vector3 refRight   = Vector3.ProjectOnPlane(refT.right, playerUp).normalized;
+        Vector3 refRight = Vector3.ProjectOnPlane(refT.right, playerUp).normalized;
 
-        float speed = moveSpeed * (Input.GetKey(sprintKey) ? sprintMultiplier : 1f);
+        bool sprint = (input != null) && input.SprintHeld;
+        float speed = moveSpeed * (sprint ? sprintMultiplier : 1f);
 
         Vector3 inputDir = (refRight * x + refForward * z);
         if (inputDir.sqrMagnitude > 1f) inputDir.Normalize();
@@ -180,16 +172,12 @@ public class PlayerGravityController : MonoBehaviour
         {
             Vector3 dir = desired.normalized;
 
-            // Cheap wall probe: cast a small sphere forward in the desired direction
             float probeDist = 0.25f;
             float probeRadius = capsule.radius * 0.9f;
             Vector3 probeOrigin = transform.position;
 
             if (Physics.SphereCast(probeOrigin, probeRadius, dir, out RaycastHit hit, probeDist, groundMask, QueryTriggerInteraction.Ignore))
-            {
-                // Remove the component that pushes into the wall
                 desired = Vector3.ProjectOnPlane(desired, hit.normal);
-            }
         }
 
         Vector3 vel = rb.linearVelocity;
@@ -201,8 +189,6 @@ public class PlayerGravityController : MonoBehaviour
 
         rb.linearVelocity = newHorizontal + vertical;
 
-        // In 3rd person we usually want the character to face where they're moving,
-        // but NOT where the camera is looking.
         if (moveReference == MoveReference.Player && rotateTowardMoveDirection)
         {
             if (Mathf.Abs(z) > 0.1f && inputDir.sqrMagnitude > 0.001f)
@@ -212,8 +198,7 @@ public class PlayerGravityController : MonoBehaviour
             }
         }
 
-        Vector2 moveInput = new Vector2(x, z);
-        bool hasMoveInput = moveInput.sqrMagnitude > moveDeadzone * moveDeadzone;
+        bool hasMoveInput = (x * x + z * z) > (moveDeadzone * moveDeadzone);
 
         if (faceCameraWhenMoving && hasMoveInput && cameraTransform != null)
         {
@@ -225,16 +210,13 @@ public class PlayerGravityController : MonoBehaviour
                 transform.rotation = Quaternion.Slerp(transform.rotation, target, faceTurnSpeed * Time.fixedDeltaTime);
             }
         }
-
     }
 
     void OnCollisionStay(Collision collision)
     {
-        // Choose best contact for grounding + snapping
         Vector3 bestGroundNormal = groundNormal;
         float bestGroundDot = -999f;
 
-        // For snapping, pick the contact we're moving into
         Vector3 v = rb.linearVelocity;
         float speed = v.magnitude;
         Vector3 incoming = speed > 0.001f ? (-v / speed) : Vector3.zero;
@@ -246,7 +228,6 @@ public class PlayerGravityController : MonoBehaviour
         {
             Vector3 n = collision.GetContact(i).normal;
 
-            // Grounding check: normal should be reasonably aligned with our current up
             float gDot = Vector3.Dot(n, playerUp);
             if (gDot > bestGroundDot)
             {
@@ -254,7 +235,6 @@ public class PlayerGravityController : MonoBehaviour
                 bestGroundNormal = n;
             }
 
-            // Impact check: which normal are we heading into?
             if (speed > 0.001f)
             {
                 float iDot = Vector3.Dot(n, incoming);
@@ -266,7 +246,6 @@ public class PlayerGravityController : MonoBehaviour
             }
         }
 
-        // Set grounded if we're standing on something relative to current up
         if (bestGroundDot > groundedDot)
         {
             bool hasBelowContact = false;
@@ -275,13 +254,11 @@ public class PlayerGravityController : MonoBehaviour
             {
                 var c = collision.GetContact(i);
 
-                // Only consider contacts that match the chosen "best ground" normal
                 if (Vector3.Dot(c.normal, bestGroundNormal) < 0.95f)
                     continue;
 
-                // Is this contact below our center, relative to current gravity?
                 Vector3 toContact = (c.point - transform.position).normalized;
-                float below = Vector3.Dot(toContact, -playerUp); // > 0 means "down" direction
+                float below = Vector3.Dot(toContact, -playerUp);
 
                 if (below > 0.2f)
                 {
@@ -295,20 +272,11 @@ public class PlayerGravityController : MonoBehaviour
                 isGrounded = true;
                 groundNormal = bestGroundNormal;
 
-                // Lock gravity to what you’re standing on
                 float angle = Vector3.Angle(playerUp, groundNormal);
                 if (angle > 1.0f)
-                {
                     playerUp = Vector3.Slerp(playerUp, groundNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
-                }
             }
         }
-
-        // if (snapGravityOnImpact && jumpedThisAir && airTime >= minAirTimeToSnap && speed > minSnapSpeed && bestImpactDot > 0.15f)
-        // {
-        //     Debug.Log("Snapping to wall");
-        //     playerUp = Vector3.Slerp(playerUp, bestImpactNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
-        // }
     }
 
     void OnCollisionEnter(Collision collision)
@@ -316,11 +284,9 @@ public class PlayerGravityController : MonoBehaviour
         if (!snapGravityOnImpact) return;
         if (!jumpedThisAir) return;
 
-        // Use collision-provided impact velocity (more reliable than rb.linearVelocity here)
         float relSpeed = collision.relativeVelocity.magnitude;
-        if (relSpeed < 0.2f) return; // was "too slow" – tune 0.1–0.5
+        if (relSpeed < 0.2f) return;
 
-        // Pick the contact we are moving INTO the most, using relative velocity
         Vector3 rv = collision.relativeVelocity;
 
         Vector3 bestNormal = playerUp;
@@ -329,7 +295,7 @@ public class PlayerGravityController : MonoBehaviour
         for (int i = 0; i < collision.contactCount; i++)
         {
             Vector3 n = collision.GetContact(i).normal;
-            float into = Vector3.Dot(rv, -n); // >0 means moving into the surface
+            float into = Vector3.Dot(rv, -n);
             if (into > bestInto)
             {
                 bestInto = into;
@@ -337,15 +303,13 @@ public class PlayerGravityController : MonoBehaviour
             }
         }
 
-        if (bestInto < 0.2f) return; // tune; this is "into surface" based on collision
+        if (bestInto < 0.2f) return;
 
-        // Optional: avoid snapping to floor/ceiling
         float upDot = Vector3.Dot(bestNormal, playerUp);
         if (upDot > 0.75f || upDot < -0.75f) return;
 
         playerUp = bestNormal.normalized;
 
-        // Reduce slide: remove velocity along the surface using current rigidbody velocity
         Vector3 v = rb.linearVelocity;
         Vector3 tangent = v - Vector3.Project(v, playerUp);
         rb.linearVelocity = v - tangent * 0.6f;
