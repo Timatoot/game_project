@@ -6,14 +6,10 @@ public class PlayerGravityController : MonoBehaviour
     public enum MoveReference { Camera, Player }
 
     [Header("Input")]
-    public GravityInput input; // Drag Player (with GravityInput) or auto-find
+    public GravityInput input;
 
     [Header("Movement Reference")]
     public MoveReference moveReference = MoveReference.Camera;
-
-    [Header("Turn Toward Movement (3rd person feel)")]
-    public bool rotateTowardMoveDirection = false;
-    public float turnSpeed = 10f;
 
     [Header("Collision Masks")]
     public LayerMask groundMask = ~0;
@@ -24,16 +20,11 @@ public class PlayerGravityController : MonoBehaviour
 
     [Header("Auto Snap Gravity")]
     public bool snapGravityOnImpact = true;
-    public float minSnapSpeed = 1.0f;
     public float snapSlerpSpeed = 25f;
 
     [Header("Movement")]
     public float moveSpeed = 6f;
-
-    [Header("Sprint")]
     public float sprintMultiplier = 1.6f;
-
-    [Header("Air Control")]
     public float airControl = 0.5f;
 
     [Header("Jump")]
@@ -46,33 +37,36 @@ public class PlayerGravityController : MonoBehaviour
     public float moveDeadzone = 0.05f;
 
     [Header("Landing / Ground Stick")]
-    public float landingHorizontalDamp = 0.15f; // 0.15 = keep 15% of horizontal speed on landing
-    public float groundedFriction = 10f;        // only used when no move input
+    public float landingHorizontalDamp = 0.15f;
+    public float groundedFriction = 10f;
 
     [Header("Idle Rotation Lock")]
     public bool lockYawWhenIdle = true;
+
+    [Header("References")]
     public Transform cameraTransform;
-    private bool jumpedThisAir;
-    private float airTime;
 
     private Rigidbody rb;
     private CapsuleCollider capsule;
 
     private Vector3 playerUp = Vector3.up;
 
-    private bool groundedLastStep;
-    private bool landedThisStep;
-
     private bool isGrounded;
     private Vector3 groundNormal = Vector3.up;
+
+    private bool groundedNext;
+    private Vector3 groundNormalNext = Vector3.up;
+
+    private bool landedThisStep;
+
+    private bool jumpedThisAir;
+    private float lastMoveInputSqr;
 
     private bool hasIdleLock;
     private Quaternion idleLockRotation;
 
     public bool IsGrounded => isGrounded;
-
-    private bool wasGrounded;
-    private float lastMoveInputSqr;
+    public Vector3 GetPlayerUp() => playerUp;
 
     void Awake()
     {
@@ -87,16 +81,19 @@ public class PlayerGravityController : MonoBehaviour
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
 
-        if (input == null) input = GetComponent<GravityInput>();
+        if (input == null)
+            input = GetComponent<GravityInput>();
     }
 
     void FixedUpdate()
     {
-        groundedLastStep = isGrounded;  // keep last step result
-        isGrounded = false;             // will be set true by collision callbacks
-        landedThisStep = false;
+        // Consume grounding results from last physics step
+        isGrounded = groundedNext;
+        groundNormal = groundedNext ? groundNormalNext : playerUp;
 
-        groundNormal = playerUp;
+        groundedNext = false;
+        groundNormalNext = playerUp;
+        landedThisStep = false;
 
         Vector2 move = input != null ? input.Move : Vector2.zero;
         float x = move.x;
@@ -104,6 +101,28 @@ public class PlayerGravityController : MonoBehaviour
 
         lastMoveInputSqr = x * x + z * z;
 
+        UpdateIdleLock(x, z);
+
+        ApplyCustomGravity();
+        AlignToGravity();
+        ApplyMovement(x, z);
+        ApplyIdleGroundFriction();
+
+        if (isGrounded)
+            jumpedThisAir = false;
+    }
+
+    void Update()
+    {
+        if (input == null) return;
+        if (!isGrounded) return;
+        if (!input.JumpPressed) return;
+
+        DoJump();
+    }
+
+    private void UpdateIdleLock(float x, float z)
+    {
         bool idle = (x * x + z * z) < (moveDeadzone * moveDeadzone);
 
         if (lockYawWhenIdle && faceCameraWhenMoving && idle)
@@ -118,60 +137,18 @@ public class PlayerGravityController : MonoBehaviour
         {
             hasIdleLock = false;
         }
-
-        isGrounded = false;
-        wasGrounded = false;
-        groundNormal = playerUp;
-
-        ApplyCustomGravity();
-        AlignToGravity();
-        Move(x, z);
-
-        if (isGrounded && lastMoveInputSqr < (moveDeadzone * moveDeadzone))
-        {
-            Vector3 v = rb.linearVelocity;
-
-            // Split into vertical (along up) and horizontal (on surface)
-            Vector3 vertical = Vector3.Project(v, playerUp);
-            Vector3 horizontal = v - vertical;
-
-            horizontal = Vector3.Lerp(horizontal, Vector3.zero, groundedFriction * Time.fixedDeltaTime);
-            rb.linearVelocity = horizontal + vertical;
-        }
-
-        if (isGrounded) airTime = 0f;
-        else airTime += Time.fixedDeltaTime;
-
-        if (isGrounded) jumpedThisAir = false;
     }
 
-    void Update()
-    {
-        if (input != null && input.JumpPressed && isGrounded)
-        {
-            Vector3 v = rb.linearVelocity;
-            float down = Vector3.Dot(v, -playerUp);
-            if (down > 0f) v += playerUp * down;
-
-            rb.linearVelocity = v;
-            rb.AddForce(playerUp * jumpSpeed, ForceMode.VelocityChange);
-            jumpedThisAir = true;
-        }
-    }
-
-    void ApplyCustomGravity()
+    private void ApplyCustomGravity()
     {
         rb.AddForce(-playerUp * gravityStrength, ForceMode.Acceleration);
     }
 
-    void AlignToGravity()
+    private void AlignToGravity()
     {
-        Vector3 forwardToKeep;
-
-        if (hasIdleLock)
-            forwardToKeep = Vector3.ProjectOnPlane(idleLockRotation * Vector3.forward, playerUp);
-        else
-            forwardToKeep = Vector3.ProjectOnPlane(transform.forward, playerUp);
+        Vector3 forwardToKeep = hasIdleLock
+            ? Vector3.ProjectOnPlane(idleLockRotation * Vector3.forward, playerUp)
+            : Vector3.ProjectOnPlane(transform.forward, playerUp);
 
         if (forwardToKeep.sqrMagnitude < 0.0001f)
             forwardToKeep = Vector3.ProjectOnPlane(transform.right, playerUp);
@@ -180,7 +157,7 @@ public class PlayerGravityController : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, alignToGravitySpeed * Time.fixedDeltaTime);
     }
 
-    void Move(float x, float z)
+    private void ApplyMovement(float x, float z)
     {
         if (cameraTransform == null && moveReference == MoveReference.Camera) return;
 
@@ -200,7 +177,6 @@ public class PlayerGravityController : MonoBehaviour
         if (!isGrounded && desired.sqrMagnitude > 0.001f)
         {
             Vector3 dir = desired.normalized;
-
             float probeDist = 0.25f;
             float probeRadius = capsule.radius * 0.9f;
             Vector3 probeOrigin = transform.position;
@@ -210,7 +186,7 @@ public class PlayerGravityController : MonoBehaviour
         }
 
         Vector3 vel = rb.linearVelocity;
-        Vector3 vertical = Vector3.Project(vel, -playerUp);
+        Vector3 vertical = Vector3.Project(vel, playerUp);
         Vector3 horizontal = vel - vertical;
 
         float control = isGrounded ? 1f : airControl;
@@ -218,21 +194,11 @@ public class PlayerGravityController : MonoBehaviour
 
         rb.linearVelocity = newHorizontal + vertical;
 
-        if (moveReference == MoveReference.Player && rotateTowardMoveDirection)
-        {
-            if (Mathf.Abs(z) > 0.1f && inputDir.sqrMagnitude > 0.001f)
-            {
-                Quaternion target = Quaternion.LookRotation(inputDir, playerUp);
-                transform.rotation = Quaternion.Slerp(transform.rotation, target, turnSpeed * Time.fixedDeltaTime);
-            }
-        }
-
-        bool hasMoveInput = (x * x + z * z) > (moveDeadzone * moveDeadzone);
+        bool hasMoveInput = lastMoveInputSqr > (moveDeadzone * moveDeadzone);
 
         if (faceCameraWhenMoving && hasMoveInput && cameraTransform != null)
         {
             Vector3 camForward = Vector3.ProjectOnPlane(cameraTransform.forward, playerUp).normalized;
-
             if (camForward.sqrMagnitude > 0.0001f)
             {
                 Quaternion target = Quaternion.LookRotation(camForward, playerUp);
@@ -241,78 +207,81 @@ public class PlayerGravityController : MonoBehaviour
         }
     }
 
-    void OnCollisionStay(Collision collision)
+    private void ApplyIdleGroundFriction()
     {
-        Vector3 bestGroundNormal = groundNormal;
-        float bestGroundDot = -999f;
+        if (!isGrounded) return;
+        if (lastMoveInputSqr >= (moveDeadzone * moveDeadzone)) return;
 
         Vector3 v = rb.linearVelocity;
-        float speed = v.magnitude;
-        Vector3 incoming = speed > 0.001f ? (-v / speed) : Vector3.zero;
+        Vector3 vertical = Vector3.Project(v, playerUp);
+        Vector3 horizontal = v - vertical;
 
-        Vector3 bestImpactNormal = playerUp;
-        float bestImpactDot = -1f;
+        horizontal = Vector3.Lerp(horizontal, Vector3.zero, groundedFriction * Time.fixedDeltaTime);
+        rb.linearVelocity = horizontal + vertical;
+    }
+
+    private void DoJump()
+    {
+        Vector3 v = rb.linearVelocity;
+
+        float down = Vector3.Dot(v, -playerUp);
+        if (down > 0f) v += playerUp * down;
+
+        rb.linearVelocity = v;
+        rb.AddForce(playerUp * jumpSpeed, ForceMode.VelocityChange);
+        jumpedThisAir = true;
+    }
+
+    void OnCollisionStay(Collision collision)
+    {
+        // Find best support normal
+        Vector3 bestNormal = playerUp;
+        float bestDot = -999f;
 
         for (int i = 0; i < collision.contactCount; i++)
         {
             Vector3 n = collision.GetContact(i).normal;
-
-            float gDot = Vector3.Dot(n, playerUp);
-            if (gDot > bestGroundDot)
+            float d = Vector3.Dot(n, playerUp);
+            if (d > bestDot)
             {
-                bestGroundDot = gDot;
-                bestGroundNormal = n;
-            }
-
-            if (speed > 0.001f)
-            {
-                float iDot = Vector3.Dot(n, incoming);
-                if (iDot > bestImpactDot)
-                {
-                    bestImpactDot = iDot;
-                    bestImpactNormal = n;
-                }
+                bestDot = d;
+                bestNormal = n;
             }
         }
 
-        if (bestGroundDot > groundedDot)
+        if (bestDot <= groundedDot) return;
+
+        // Ensure it’s actually under you, not a side brush
+        bool hasBelowContact = false;
+        for (int i = 0; i < collision.contactCount; i++)
         {
-            bool hasBelowContact = false;
+            var c = collision.GetContact(i);
+            if (Vector3.Dot(c.normal, bestNormal) < 0.95f) continue;
 
-            for (int i = 0; i < collision.contactCount; i++)
+            Vector3 toContact = (c.point - transform.position).normalized;
+            float below = Vector3.Dot(toContact, -playerUp);
+            if (below > 0.2f)
             {
-                var c = collision.GetContact(i);
-
-                if (Vector3.Dot(c.normal, bestGroundNormal) < 0.95f)
-                    continue;
-
-                Vector3 toContact = (c.point - transform.position).normalized;
-                float below = Vector3.Dot(toContact, -playerUp);
-
-                if (below > 0.2f)
-                {
-                    hasBelowContact = true;
-                    break;
-                }
-            }
-
-            if (hasBelowContact)
-            {
-                if (!groundedLastStep && !landedThisStep)
-                {
-                    ApplyLandingBrake();
-                    landedThisStep = true;
-                }
-
-                isGrounded = true;
-                groundNormal = bestGroundNormal;
-                wasGrounded = true;
-
-                float angle = Vector3.Angle(playerUp, groundNormal);
-                if (angle > 1.0f)
-                    playerUp = Vector3.Slerp(playerUp, groundNormal.normalized, snapSlerpSpeed * Time.fixedDeltaTime);
+                hasBelowContact = true;
+                break;
             }
         }
+
+        if (!hasBelowContact) return;
+
+        if (!isGrounded && !landedThisStep)
+        {
+            ApplyLandingBrake();
+            landedThisStep = true;
+        }
+
+        groundedNext = true;
+        groundNormalNext = bestNormal.normalized;
+
+        // Smoothly align up to the surface when grounded
+        float angle = Vector3.Angle(playerUp, groundNormalNext);
+        if (angle > 1.0f)
+            playerUp = Vector3.Slerp(playerUp, groundNormalNext, snapSlerpSpeed * Time.fixedDeltaTime);
     }
 
     void OnCollisionEnter(Collision collision)
@@ -346,24 +315,25 @@ public class PlayerGravityController : MonoBehaviour
 
         playerUp = bestNormal.normalized;
 
+        // Reduce tangent velocity on impact
         Vector3 v = rb.linearVelocity;
-        Vector3 tangent = v - Vector3.Project(v, playerUp);
-        rb.linearVelocity = v - tangent * 0.6f;
+        Vector3 vertical = Vector3.Project(v, playerUp);
+        Vector3 horizontal = v - vertical;
+
+        rb.linearVelocity = vertical + horizontal * 0.4f;
     }
 
     private void ApplyLandingBrake()
     {
         Vector3 v = rb.linearVelocity;
 
-        // remove velocity into the ground
         float into = Vector3.Dot(v, -playerUp);
         if (into > 0f) v += playerUp * into;
 
-        // damp horizontal only
         Vector3 vertical = Vector3.Project(v, playerUp);
         Vector3 horizontal = v - vertical;
 
-        horizontal *= landingHorizontalDamp; // e.g. 0.15f
+        horizontal *= landingHorizontalDamp;
         rb.linearVelocity = vertical + horizontal;
     }
 
@@ -372,6 +342,4 @@ public class PlayerGravityController : MonoBehaviour
         if (newUp.sqrMagnitude < 0.0001f) return;
         playerUp = newUp.normalized;
     }
-
-    public Vector3 GetPlayerUp() => playerUp;
 }
