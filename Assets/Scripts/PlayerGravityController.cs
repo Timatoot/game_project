@@ -5,6 +5,9 @@ public class PlayerGravityController : MonoBehaviour
 {
     public enum MoveReference { Camera, Player }
 
+    public System.Action Jumped;
+    public System.Action Landed;
+
     [Header("Input")]
     public GravityInput input;
 
@@ -26,6 +29,11 @@ public class PlayerGravityController : MonoBehaviour
     public float moveSpeed = 6f;
     public float sprintMultiplier = 1.6f;
     public float airControl = 0.5f;
+
+    [Header("Sprint Direction Scaling")]
+    public float backwardSprintMultiplier = 1.36f; // tuned so moveSpeed * backwardSprintMultiplier ≈ 6
+    public float backwardSprintThreshold = -0.05f; // input.z less than this counts as backward
+    public float forwardSprintThreshold = 0.05f;
 
     [Header("Jump")]
     public float jumpSpeed = 7f;
@@ -166,8 +174,24 @@ public class PlayerGravityController : MonoBehaviour
         Vector3 refForward = Vector3.ProjectOnPlane(refT.forward, playerUp).normalized;
         Vector3 refRight = Vector3.ProjectOnPlane(refT.right, playerUp).normalized;
 
-        bool sprint = (input != null) && input.SprintHeld;
-        float speed = moveSpeed * (sprint ? sprintMultiplier : 1f);
+        bool sprintHeld = (input != null) && input.SprintHeld;
+
+        float mult = 1f;
+
+        if (sprintHeld)
+        {
+            if (z < backwardSprintThreshold)
+            {
+                mult = backwardSprintMultiplier;
+            }
+            else
+            {
+                mult = sprintMultiplier;
+            }
+        }
+
+        float speed = moveSpeed * mult;
+
 
         Vector3 inputDir = (refRight * x + refForward * z);
         if (inputDir.sqrMagnitude > 1f) inputDir.Normalize();
@@ -230,6 +254,8 @@ public class PlayerGravityController : MonoBehaviour
         rb.linearVelocity = v;
         rb.AddForce(playerUp * jumpSpeed, ForceMode.VelocityChange);
         jumpedThisAir = true;
+
+        Jumped?.Invoke();
     }
 
     void OnCollisionStay(Collision collision)
@@ -273,6 +299,7 @@ public class PlayerGravityController : MonoBehaviour
         {
             ApplyLandingBrake();
             landedThisStep = true;
+            Landed?.Invoke();
         }
 
         groundedNext = true;

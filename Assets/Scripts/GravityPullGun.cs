@@ -161,6 +161,9 @@ public class GravityPullGun : MonoBehaviour
 
         Vector3 v = rb.linearVelocity;
 
+        controller.Jumped?.Invoke();
+        hopTimer = hopGraceTime;
+
         // Remove downward velocity so hop is consistent
         float down = Vector3.Dot(v, -up);
         if (down > 0f) v += up * down;
