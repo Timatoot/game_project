@@ -26,6 +26,9 @@ public class GravityPullGun : MonoBehaviour
     public float ignoreSameSurfaceAngle = 15f;
     public float ignoreSameSurfaceDistance = 2.0f;
 
+    [Header("Grav Latch Angle")]
+    public float angleNeeded = 10f;
+
     private bool pulling;
     private Collider targetCollider;
     private Vector3 targetPoint;
@@ -84,8 +87,25 @@ public class GravityPullGun : MonoBehaviour
     {
         if (controller == null) return;
 
+        if (pulling) return; //if we are mid "pull", ignore all inputs
+
         if (!TrySelectTarget(out RaycastHit chosen))
             return;
+
+        float surfaceAngle = Vector3.Angle(controller.GetPlayerUp(), chosen.normal);
+        // if the angle is greater than the 10 degree threshold, we can attach
+        // to the same object, aka we can attach to the a diffrent side of the
+        // same platform.
+        if (surfaceAngle < angleNeeded)
+        {
+            // only block if we are on the same side of the platform
+            if (controller.IsGrounded)
+            {
+                Debug.Log("needs to be greater than: " + angleNeeded + ". current angle is: " + surfaceAngle);
+                return;
+            }
+        }
+
 
         if (controller.IsGrounded)
         {
