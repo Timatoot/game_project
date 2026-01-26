@@ -11,6 +11,7 @@ ideas:
 - we can have diffrent level designs 
 - landing animation
 - fix landing animation for jumping aswell
+- cylanders when sprinting or even walking fall off
 
 FallingBuilding Idea 
 - it be the starter planet
