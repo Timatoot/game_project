@@ -12,6 +12,7 @@ ideas:
 - landing animation
 - fix landing animation for jumping aswell
 - cylanders when sprinting or even walking fall off
+- we can make it so the keys open other doors where the tp will open up too possibly
 
 FallingBuilding Idea 
 - it be the starter planet
