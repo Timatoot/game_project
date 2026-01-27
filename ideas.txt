@@ -1,0 +1,28 @@
+ideas:
+- make it that you cant teleport to the same platform you already are since it doesnt really make sense
+- range extender ability to pick up (do later when we get the basics down)
+- highlight platform to go to
+- start on planet
+- we dont have to make it realistic so flying glorbs are fine
+- its hard to see which way is up right now, we make it more defined 
+- if out of range, make it glow red or sum shi
+- make diffrent platforms, square, circle, etc
+- minimap or progress bar possibly
+- we can have diffrent level designs 
+- landing animation
+- fix landing animation for jumping aswell
+- cylanders when sprinting or even walking fall off
+- we can make it so the keys open other doors where the tp will open up too possibly
+
+FallingBuilding Idea 
+- it be the starter planet
+- the world became "infected" with a gravity defying somethign
+- buildings are floating and crumbling
+- our person was a researcher who went in contact with the virus the most and now can at will choose what surface he wants to go to
+- he is climbing the HQ of the place he worked to go get the "TP" to the rocket ship which he has access to in space. 
+- this level will show the tp mechanic, the gravity mechanic, how to use everything, etc. 
+- very basic level
+- the "tp" is the final point of each level. 
+
+Level Mechanics (?)
+- instead of making the progression linear we can make it so each level are the closest planets to him or planets he has already seen

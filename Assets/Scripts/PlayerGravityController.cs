@@ -260,6 +260,11 @@ public class PlayerGravityController : MonoBehaviour
 
     void OnCollisionStay(Collision collision)
     {
+        // if the object we hit is not in groundmask, ignore
+        if (((1 << collision.gameObject.layer) & groundMask) == 0) return;
+
+        if (!snapGravityOnImpact) return;
+
         // Find best support normal
         Vector3 bestNormal = playerUp;
         float bestDot = -999f;
