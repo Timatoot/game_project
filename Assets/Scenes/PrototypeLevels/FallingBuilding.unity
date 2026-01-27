@@ -487,6 +487,22 @@ PrefabInstance:
       propertyPath: groundMask.m_Bits
       value: 247
       objectReference: {fileID: 0}
+    - target: {fileID: 7043930897344918907, guid: af411af04fdc1964392fd284a1c99294, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7043930897344918907, guid: af411af04fdc1964392fd284a1c99294, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7043930897344918907, guid: af411af04fdc1964392fd284a1c99294, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7043930897344918907, guid: af411af04fdc1964392fd284a1c99294, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8285744137252949467, guid: af411af04fdc1964392fd284a1c99294, type: 3}
       propertyPath: aimMask.m_Bits
       value: 183
