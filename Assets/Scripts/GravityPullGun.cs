@@ -29,6 +29,11 @@ public class GravityPullGun : MonoBehaviour
     [Header("Grav Latch Angle")]
     public float angleNeeded = 10f;
 
+    [Header("Highlighting")]
+    public int outlineLayerIndex = 7;
+    private GameObject lastTarget;
+    private int originalLayer;
+
     private bool pulling;
     private Collider targetCollider;
     private Vector3 targetPoint;
@@ -47,6 +52,58 @@ public class GravityPullGun : MonoBehaviour
     {
         if (input != null && input.PullPressed)
             TryStartPull();
+
+        if (TrySelectTarget(out RaycastHit hit))
+        {
+            // if grounded, unhighlight the floor we are currently on are 
+            if (controller.IsGrounded && hit.collider == targetCollider)
+            {
+                ResetHighlight();
+                return;
+            }
+
+            // call game object instead of renderer
+            GameObject currentTarget = hit.collider.gameObject;
+
+            // check the distance and see if you wanna highlight it
+            float dist = Vector3.Distance(transform.position, hit.point);
+
+            if (dist <= maxDistance)
+            {
+                ApplyHighlight(currentTarget);
+            }
+            else
+            {
+                // reset highlight if unable to reach
+                ResetHighlight();
+            }
+        }
+        else
+        {
+            ResetHighlight();
+        }
+    }
+
+    private void ApplyHighlight(GameObject target)
+    {
+        if (target == lastTarget) return;
+
+        ResetHighlight();
+
+        lastTarget = target;
+        originalLayer = target.layer;
+
+        // this layer needs to be the outline layer to work
+        target.layer = outlineLayerIndex;
+    }
+
+    private void ResetHighlight()
+    {
+        if (lastTarget != null)
+        {
+            lastTarget.layer = originalLayer;
+            lastTarget = null;
+        }
     }
 
     void FixedUpdate()

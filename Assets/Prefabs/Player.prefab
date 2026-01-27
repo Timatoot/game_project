@@ -729,6 +729,8 @@ MonoBehaviour:
   hopGraceTime: 0.1
   ignoreSameSurfaceAngle: 15
   ignoreSameSurfaceDistance: 2
+  angleNeeded: 10
+  outlineLayerIndex: 7
 --- !u!114 &8684828926545674163
 MonoBehaviour:
   m_ObjectHideFlags: 0
