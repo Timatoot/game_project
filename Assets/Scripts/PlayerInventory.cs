@@ -1,21 +1,33 @@
 using UnityEngine;
+using System;
 using System.Collections.Generic;
 
 public class PlayerInventory : MonoBehaviour
 {
-    // A list of IDs for keys the player has collected
-    private HashSet<string> collectedKeys = new HashSet<string>();
+    private readonly HashSet<string> collectedKeys = new HashSet<string>();
+
+    public event Action<string> KeyAdded;
+    public event Action KeysCleared;
+
+    public IReadOnlyCollection<string> CollectedKeys => collectedKeys;
 
     public void AddKey(string keyID)
     {
-        if (!collectedKeys.Contains(keyID))
+        if (string.IsNullOrWhiteSpace(keyID)) return;
+
+        // HashSet.Add returns true only if it was newly added
+        if (collectedKeys.Add(keyID))
         {
-            collectedKeys.Add(keyID);
+            KeyAdded?.Invoke(keyID);
         }
     }
 
-    public bool HasKey(string keyID)
+    public bool HasKey(string keyID) => collectedKeys.Contains(keyID);
+
+    public void ClearKeys()
     {
-        return collectedKeys.Contains(keyID);
+        if (collectedKeys.Count == 0) return;
+        collectedKeys.Clear();
+        KeysCleared?.Invoke();
     }
 }
