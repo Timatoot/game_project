@@ -15,7 +15,6 @@ public class PlayerInventory : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(keyID)) return;
 
-        // HashSet.Add returns true only if it was newly added
         if (collectedKeys.Add(keyID))
         {
             KeyAdded?.Invoke(keyID);

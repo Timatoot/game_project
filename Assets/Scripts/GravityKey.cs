@@ -3,49 +3,37 @@ using UnityEngine;
 public class GravityKey : MonoBehaviour
 {
     [Header("Settings")]
-    public string keyID = "Level1_MainKey"; // Useful if you have multiple keys
+    public string keyID = "Level1_MainKey";
     public float rotationSpeed = 50f;
 
     [Header("Floating Animation")]
     public float bobSpeed = 2f;
     public float bobHeight = 0.2f;
-    private Vector3 startPos;
 
-    void Start() {
-        startPos = transform.localPosition;
+    private Vector3 startWorldPos;
+    private Vector3 bobAxis;
+
+    private void Start()
+    {
+        startWorldPos = transform.position;
+        bobAxis = transform.up; // lock the axis at spawn time
     }
 
-    private void Update() {
-        // Rotation logic
-        transform.Rotate(new Vector3(15, 30, 45) * Time.deltaTime);
+    private void Update()
+    {
+        transform.Rotate(new Vector3(15f, 30f, 45f) * (rotationSpeed / 50f) * Time.deltaTime, Space.Self);
 
-        // Floating logic using a Sine wave
-        float newY = Mathf.Sin(Time.time * bobSpeed) * bobHeight;
-        transform.localPosition = startPos + new Vector3(0, newY, 0);
+        float offset = Mathf.Sin(Time.time * bobSpeed) * bobHeight;
+        transform.position = startWorldPos + bobAxis * offset;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // Check if the object that touched the ball is the player
-        // This assumes your Player object has the PlayerGravityController script
-        if (other.GetComponentInParent<PlayerGravityController>() != null)
-        {
-            Collect(other.gameObject);
-        }
-    }
+        if (other.GetComponentInParent<PlayerGravityController>() == null) return;
 
-    private void Collect(GameObject player)
-    {
-        Debug.Log("key grabbed");
+        var inv = other.GetComponentInParent<PlayerInventory>();
+        if (inv != null) inv.AddKey(keyID);
 
-        // Find a "Key Inventory" on the player and register this key
-        PlayerInventory inv = player.GetComponentInParent<PlayerInventory>();
-        if (inv != null)
-        {
-            inv.AddKey(keyID);
-        }
-
-        // Destroy the blue ball in the scene
         Destroy(gameObject);
     }
 }
