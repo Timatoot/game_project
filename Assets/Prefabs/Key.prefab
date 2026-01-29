@@ -12,8 +12,8 @@ GameObject:
   - component: {fileID: 2236191149268883411}
   - component: {fileID: 3282440177966211710}
   - component: {fileID: 4582001912385628056}
-  - component: {fileID: 4189723275466461366}
   - component: {fileID: 9120828634927223356}
+  - component: {fileID: 4185740292249860188}
   m_Layer: 0
   m_Name: Key
   m_TagString: Untagged
@@ -114,22 +114,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &4189723275466461366
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4328247583078419192}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: edb40473779148349b437b71b64c328f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GravityKey
-  keyID: Level1_MainKey
-  rotationSpeed: 50
-  bobSpeed: 2
-  bobHeight: 0.2
 --- !u!54 &9120828634927223356
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -157,3 +141,19 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &4185740292249860188
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4328247583078419192}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 656b8ed0a670ec54fb25322fe6ebc06b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GravityKey
+  keyID: 
+  rotationSpeed: 50
+  bobSpeed: 2
+  bobHeight: 0.2

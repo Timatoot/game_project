@@ -1,9 +1,13 @@
+/*
+basics for every key item. later possibly add a option to change the model of the object
+*/
+
 using UnityEngine;
 
-public class GravityKey : MonoBehaviour
+public class KeyItem : MonoBehaviour
 {
     [Header("Settings")]
-    public string keyID = "Level1_MainKey";
+    public string keyID;
     public float rotationSpeed = 50f;
 
     [Header("Floating Animation")]
@@ -33,6 +37,8 @@ public class GravityKey : MonoBehaviour
 
         var inv = other.GetComponentInParent<PlayerInventory>();
         if (inv != null) inv.AddKey(keyID);
+
+        Debug.Log("key picked up");
 
         Destroy(gameObject);
     }
