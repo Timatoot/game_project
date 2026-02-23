@@ -9,6 +9,7 @@ public class KeyItem : MonoBehaviour
     [Header("Settings")]
     public string keyID;
     public float rotationSpeed = 50f;
+    private bool pickedUp;
 
     [Header("Floating Animation")]
     public float bobSpeed = 2f;
@@ -33,12 +34,19 @@ public class KeyItem : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (pickedUp) return;
+
         if (other.GetComponentInParent<PlayerGravityController>() == null) return;
+
+        pickedUp = true;
 
         var inv = other.GetComponentInParent<PlayerInventory>();
         if (inv != null) inv.AddKey(keyID);
 
-        Debug.Log("key picked up");
+        Debug.Log($"key picked up: {keyID} by {other.name}", this);
+
+        var col = GetComponent<Collider>();
+        if (col) col.enabled = false;
 
         Destroy(gameObject);
     }
