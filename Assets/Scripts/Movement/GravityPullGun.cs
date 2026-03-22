@@ -22,9 +22,9 @@ public class GravityPullGun : MonoBehaviour
     public float hopVelocityOverride = -1f; // -1 = use PlayerGravityController.jumpSpeed
     public float hopGraceTime = 0.10f;
 
-    [Header("Target Filtering (prevents selecting the surface you’re already on)")]
+    [Header("Target Filtering")]
     public float ignoreSameSurfaceAngle = 15f;
-    public float ignoreSameSurfaceDistance = 2.0f;
+    public float ignoreSameSurfaceDistance = 1.0f;
 
     [Header("Grav Latch Angle")]
     public float angleNeeded = 10f;
@@ -33,6 +33,9 @@ public class GravityPullGun : MonoBehaviour
     public int outlineLayerIndex = 7;
     private GameObject lastTarget;
     private int originalLayer;
+
+    [Header("Debug")]
+    public bool debugTargeting;
 
     private bool pulling;
     private Collider targetCollider;
@@ -53,30 +56,10 @@ public class GravityPullGun : MonoBehaviour
         if (input != null && input.PullPressed)
             TryStartPull();
 
-        if (TrySelectTarget(out RaycastHit hit))
+        if (TrySelectVisibleTarget(out RaycastHit hit))
         {
-            // if grounded, unhighlight the floor we are currently on are 
-            if (controller.IsGrounded && hit.collider == targetCollider)
-            {
-                ResetHighlight();
-                return;
-            }
-
-            // call game object instead of renderer
             GameObject currentTarget = hit.collider.gameObject;
-
-            // check the distance and see if you wanna highlight it
-            float dist = Vector3.Distance(transform.position, hit.point);
-
-            if (dist <= maxDistance)
-            {
-                ApplyHighlight(currentTarget);
-            }
-            else
-            {
-                // reset highlight if unable to reach
-                ResetHighlight();
-            }
+            ApplyHighlight(currentTarget);
         }
         else
         {
@@ -92,8 +75,6 @@ public class GravityPullGun : MonoBehaviour
 
         lastTarget = target;
         originalLayer = target.layer;
-
-        // this layer needs to be the outline layer to work
         target.layer = outlineLayerIndex;
     }
 
@@ -143,31 +124,24 @@ public class GravityPullGun : MonoBehaviour
     private void TryStartPull()
     {
         if (controller == null) return;
+        if (pulling) return;
 
-        if (pulling) return; //if we are mid "pull", ignore all inputs
-
-        if (!TrySelectTarget(out RaycastHit chosen))
+        if (!TrySelectVisibleTarget(out RaycastHit chosen))
             return;
 
         float surfaceAngle = Vector3.Angle(controller.GetPlayerUp(), chosen.normal);
-        // if the angle is greater than the 10 degree threshold, we can attach
-        // to the same object, aka we can attach to the a diffrent side of the
-        // same platform.
-        if (surfaceAngle < angleNeeded)
+        if (surfaceAngle < angleNeeded && controller.IsGrounded)
         {
-            // only block if we are on the same side of the platform
-            if (controller.IsGrounded)
-            {
-                Debug.Log("needs to be greater than: " + angleNeeded + ". current angle is: " + surfaceAngle);
-                return;
-            }
+            if (debugTargeting)
+                Debug.Log($"Blocked pull: target angle {surfaceAngle:F1} is below required {angleNeeded:F1}.");
+            return;
         }
-
 
         if (controller.IsGrounded)
         {
             float angle = Vector3.Angle(controller.GetPlayerUp(), chosen.normal);
-            if (angle < 5f) return;
+            if (angle < 5f)
+                return;
         }
 
         if (rb != null)
@@ -189,44 +163,57 @@ public class GravityPullGun : MonoBehaviour
             DoPullHop();
     }
 
-    private bool TrySelectTarget(out RaycastHit chosen)
+    private bool TrySelectVisibleTarget(out RaycastHit chosen)
     {
         chosen = default;
 
         Ray ray = new Ray(transform.position, transform.forward);
-        var hits = Physics.RaycastAll(ray, maxDistance, aimMask, QueryTriggerInteraction.Ignore);
-        if (hits == null || hits.Length == 0) return false;
+        if (!Physics.Raycast(ray, out RaycastHit hit, maxDistance, aimMask, QueryTriggerInteraction.Ignore))
+        {
+            if (debugTargeting)
+                Debug.DrawRay(ray.origin, ray.direction * maxDistance, Color.red, 0.05f);
+            return false;
+        }
 
-        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        if (debugTargeting)
+            Debug.DrawRay(ray.origin, ray.direction * hit.distance, Color.green, 0.05f);
+
+        if (hit.distance < ignoreNearFromCamera)
+        {
+            if (debugTargeting)
+                Debug.Log($"Ignoring target {hit.collider.name}: too close to camera.");
+            return false;
+        }
+
+        if (rb != null && hit.rigidbody == rb)
+        {
+            if (debugTargeting)
+                Debug.Log("Ignoring target: hit player rigidbody.");
+            return false;
+        }
+
+        if (controller != null && controller.IsGrounded && IsSameSurface(hit))
+        {
+            if (debugTargeting)
+                Debug.Log($"Ignoring target {hit.collider.name}: same grounded surface, so nothing behind it can be selected.");
+            return false;
+        }
+
+        chosen = hit;
+        return true;
+    }
+
+    private bool IsSameSurface(RaycastHit hit)
+    {
+        if (controller == null) return false;
 
         Vector3 up = controller.GetPlayerUp();
         Vector3 playerPos = (rb != null) ? rb.position : controller.transform.position;
 
-        for (int i = 0; i < hits.Length; i++)
-        {
-            var h = hits[i];
+        float angle = Vector3.Angle(up, hit.normal);
+        float distToPlayer = Vector3.Distance(playerPos, hit.point);
 
-            if (h.distance < ignoreNearFromCamera)
-                continue;
-
-            // Skip self if you ever accidentally include player layer in aimMask
-            if (rb != null && h.rigidbody == rb)
-                continue;
-
-            if (controller.IsGrounded)
-            {
-                float angle = Vector3.Angle(up, h.normal);
-                float distToPlayer = Vector3.Distance(playerPos, h.point);
-
-                if (angle < ignoreSameSurfaceAngle && distToPlayer < ignoreSameSurfaceDistance)
-                    continue;
-            }
-
-            chosen = h;
-            return true;
-        }
-
-        return false;
+        return angle < ignoreSameSurfaceAngle && distToPlayer < ignoreSameSurfaceDistance;
     }
 
     private void DoPullHop()
@@ -241,11 +228,9 @@ public class GravityPullGun : MonoBehaviour
         controller.Jumped?.Invoke();
         hopTimer = hopGraceTime;
 
-        // Remove downward velocity so hop is consistent
         float down = Vector3.Dot(v, -up);
         if (down > 0f) v += up * down;
 
-        // Ensure at least hopVel upward
         float upVel = Vector3.Dot(v, up);
         if (upVel < hopVel) v += up * (hopVel - upVel);
 
@@ -257,12 +242,5 @@ public class GravityPullGun : MonoBehaviour
     {
         pulling = false;
         controller.SetPlayerUp(targetNormal);
-    }
-
-    void OnCollisionEnter(Collision collision)
-    {
-        if (!pulling) return;
-        if (collision.collider == targetCollider)
-            FinishPull();
     }
 }
