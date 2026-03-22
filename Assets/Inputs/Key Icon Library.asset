@@ -12,8 +12,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e64920ba2b9882a44918113350150e73, type: 3}
   m_Name: Key Icon Library
   m_EditorClassIdentifier: Assembly-CSharp::KeyIconLibrary
-  entries:
-  - keyID: Level1_MainKey
-    icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
-  - keyID: Level1_SecondKey
-    icon: {fileID: 10915, guid: 0000000000000000f000000000000000, type: 0}
