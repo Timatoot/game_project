@@ -244,7 +244,7 @@ GameObject:
   - component: {fileID: 217514318}
   - component: {fileID: 217514317}
   - component: {fileID: 217514316}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Straight Broken Building
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -973,7 +973,7 @@ GameObject:
   - component: {fileID: 706957861}
   - component: {fileID: 706957860}
   - component: {fileID: 706957859}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Broken Building Top
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1197,8 +1197,9 @@ GameObject:
   - component: {fileID: 977847860}
   - component: {fileID: 977847859}
   - component: {fileID: 977847858}
-  m_Layer: 3
-  m_Name: Cylinder
+  - component: {fileID: 977847862}
+  m_Layer: 0
+  m_Name: Finish
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1219,9 +1220,9 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.5000001
   m_Height: 2
@@ -1252,7 +1253,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: e8e53b3e1a54a7e41a6c979d1d2403e2, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1299,6 +1300,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &977847862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 977847857}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0be87e4c834b21840808615300be64d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelFinish
+  targetRenderer: {fileID: 977847859}
+  endLevelScreen: {fileID: 0}
+  autoCountKeysInScene: 1
+  requiredKeyCount: 0
+  interactPrompt: Press F to finish
+  lockedColor: {r: 1, g: 0.15, b: 0.15, a: 0.22}
+  readyColor: {r: 0.15, g: 1, b: 0.35, a: 0.22}
+  emissionStrength: 2.5
+  pulseSpeed: 4
+  idleEmissionMultiplier: 0.25
+  debugLogs: 1
+  onFinish:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1001 &980562388
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1708,7 +1735,7 @@ GameObject:
   - component: {fileID: 1260307609}
   - component: {fileID: 1260307608}
   - component: {fileID: 1260307607}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Broken Building Bottom
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2268,7 +2295,7 @@ GameObject:
   - component: {fileID: 1596523104}
   - component: {fileID: 1596523103}
   - component: {fileID: 1596523102}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Leaning Building
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2606,7 +2633,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4103175639502970811, guid: 28f1ab94dba9b9840a848e2c84c2c6e5, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 30.03
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 4103175639502970811, guid: 28f1ab94dba9b9840a848e2c84c2c6e5, type: 3}
       propertyPath: m_LocalPosition.z
@@ -2856,7 +2883,7 @@ GameObject:
   - component: {fileID: 2092810822}
   - component: {fileID: 2092810821}
   - component: {fileID: 2092810820}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Slight Leaning Building
   m_TagString: Untagged
   m_Icon: {fileID: 0}

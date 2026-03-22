@@ -12,9 +12,10 @@ public class GravityInput : MonoBehaviour
     [SerializeField] private string sprintActionName = "Sprint";
     [SerializeField] private string pullActionName = "Pull";
     [SerializeField] private string toggleViewActionName = "ToggleView";
+    [SerializeField] private string interactActionName = "Interact";
 
     private PlayerInput playerInput;
-    private InputAction moveAction, lookAction, jumpAction, sprintAction, pullAction, toggleViewAction;
+    private InputAction moveAction, lookAction, jumpAction, sprintAction, pullAction, toggleViewAction, interactAction;
 
     private bool loggedMissingActions;
 
@@ -25,6 +26,7 @@ public class GravityInput : MonoBehaviour
     public bool SprintHeld => sprintAction != null && sprintAction.IsPressed();
     public bool PullPressed => pullAction != null && pullAction.WasPressedThisFrame();
     public bool ToggleViewPressed => toggleViewAction != null && toggleViewAction.WasPressedThisFrame();
+    public bool InteractPressed => interactAction != null && interactAction.WasPressedThisFrame();
 
     void Awake()
     {
@@ -41,6 +43,7 @@ public class GravityInput : MonoBehaviour
         sprintAction?.Enable();
         pullAction?.Enable();
         toggleViewAction?.Enable();
+        interactAction?.Enable();
     }
 
     void OnDisable()
@@ -51,6 +54,7 @@ public class GravityInput : MonoBehaviour
         sprintAction?.Disable();
         pullAction?.Disable();
         toggleViewAction?.Disable();
+        interactAction?.Disable();
     }
 
     private void CacheActions()
@@ -74,10 +78,11 @@ public class GravityInput : MonoBehaviour
         sprintAction = map.FindAction(sprintActionName, false);
         pullAction = map.FindAction(pullActionName, false);
         toggleViewAction = map.FindAction(toggleViewActionName, false);
+        interactAction = map.FindAction(interactActionName, false);
 
         if (!loggedMissingActions)
         {
-            if (moveAction == null || lookAction == null || jumpAction == null || sprintAction == null || pullAction == null || toggleViewAction == null)
+            if (moveAction == null || lookAction == null || jumpAction == null || sprintAction == null || pullAction == null || toggleViewAction == null || interactAction == null)
             {
                 Debug.LogWarning("GravityInput: One or more actions were not found. Check .inputactions names.", this);
                 loggedMissingActions = true;
