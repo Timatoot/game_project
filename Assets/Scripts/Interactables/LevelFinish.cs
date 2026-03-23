@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Collider))]
 public class LevelFinish : MonoBehaviour
@@ -31,6 +32,8 @@ public class LevelFinish : MonoBehaviour
 
     private PlayerInventory playerInventory;
     private GravityInput playerInput;
+    private PlayerInput unityPlayerInput;
+    private PauseMenuController pauseMenuController;
     private Material runtimeMaterial;
     private bool playerInside;
     private bool finished;
@@ -50,7 +53,7 @@ public class LevelFinish : MonoBehaviour
         if (targetRenderer != null)
             runtimeMaterial = targetRenderer.material;
 
-        CachePlayerRefs();
+        CacheRefs();
 
         if (autoCountKeysInScene)
             requiredKeyCount = CountUniqueKeysInScene();
@@ -68,8 +71,8 @@ public class LevelFinish : MonoBehaviour
 
     private void Update()
     {
-        if (playerInventory == null || playerInput == null)
-            CachePlayerRefs();
+        if (playerInventory == null || playerInput == null || unityPlayerInput == null || pauseMenuController == null)
+            CacheRefs();
 
         bool canFinish = HasAllKeys();
         ApplyVisual(canFinish);
@@ -99,7 +102,7 @@ public class LevelFinish : MonoBehaviour
         if (controller == null) return;
 
         playerInside = true;
-        CachePlayerRefs();
+        CacheRefs();
 
         if (debugLogs)
             Debug.Log($"[LevelFinish] Player entered trigger. {interactPrompt}", this);
@@ -116,13 +119,19 @@ public class LevelFinish : MonoBehaviour
             Debug.Log("[LevelFinish] Player exited trigger.", this);
     }
 
-    private void CachePlayerRefs()
+    private void CacheRefs()
     {
         if (playerInventory == null)
             playerInventory = FindFirstObjectByType<PlayerInventory>();
 
         if (playerInput == null)
             playerInput = FindFirstObjectByType<GravityInput>();
+
+        if (unityPlayerInput == null)
+            unityPlayerInput = FindFirstObjectByType<PlayerInput>();
+
+        if (pauseMenuController == null)
+            pauseMenuController = FindFirstObjectByType<PauseMenuController>();
     }
 
     private bool HasAllKeys()
@@ -178,10 +187,20 @@ public class LevelFinish : MonoBehaviour
         finished = true;
         Debug.Log("[LevelFinish] Level complete.", this);
 
-        if (endLevelScreen != null)
+        if (pauseMenuController != null)
         {
-            endLevelScreen.SetActive(true);
+            pauseMenuController.ShowEndLevelMenu();
+        }
+        else
+        {
+            if (endLevelScreen != null)
+                endLevelScreen.SetActive(true);
+
             Time.timeScale = 0f;
+
+            if (unityPlayerInput != null)
+                unityPlayerInput.enabled = false;
+
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
