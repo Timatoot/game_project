@@ -282,4 +282,20 @@ public class GravityCameraController : MonoBehaviour
 
         return clampedDir * length;
     }
+
+    public void ForceRespawnCamera(Vector3 newUp)
+    {
+        lastUp = newUp.normalized;
+        wasGrounded = false;
+
+        fpLandSnapTimer = 0f;
+        tpLandSnapTimer = 0f;
+
+        fpPitch = 0f;
+
+        if (cameraPivot != null)
+            cameraPivot.localRotation = Quaternion.identity;
+
+        tpOffsetInit = false;
+    }
 }

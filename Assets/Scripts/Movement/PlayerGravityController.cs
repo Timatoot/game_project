@@ -374,4 +374,36 @@ public class PlayerGravityController : MonoBehaviour
         if (newUp.sqrMagnitude < 0.0001f) return;
         playerUp = newUp.normalized;
     }
+
+    public void ForceRespawnState(Vector3 newUp, Vector3 newForward, Rigidbody body)
+    {
+        if (newUp.sqrMagnitude > 0.0001f)
+            playerUp = newUp.normalized;
+        else
+            playerUp = Vector3.up;
+
+        groundedNext = false;
+        groundNormalNext = playerUp;
+        isGrounded = false;
+        groundNormal = playerUp;
+        landedThisStep = false;
+        jumpedThisAir = false;
+        lastMoveInputSqr = 0f;
+        hasIdleLock = false;
+
+        Vector3 projectedForward = Vector3.ProjectOnPlane(newForward, playerUp);
+        if (projectedForward.sqrMagnitude < 0.0001f)
+            projectedForward = Vector3.ProjectOnPlane(transform.forward, playerUp);
+
+        if (projectedForward.sqrMagnitude < 0.0001f)
+            projectedForward = Vector3.forward;
+
+        transform.rotation = Quaternion.LookRotation(projectedForward.normalized, playerUp);
+
+        if (body != null)
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+    }
 }

@@ -47,6 +47,7 @@ GameObject:
   - component: {fileID: 3064277245480669669}
   - component: {fileID: 5949137920346959530}
   - component: {fileID: 7873592919041222326}
+  - component: {fileID: 6805461291832972089}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -210,6 +211,7 @@ MonoBehaviour:
   sprintActionName: Sprint
   pullActionName: Pull
   toggleViewActionName: ToggleView
+  interactActionName: Interact
 --- !u!114 &7873592919041222326
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -222,6 +224,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 35faf797157234841ad90fe3382c1fa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
+--- !u!114 &6805461291832972089
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1227861811659085111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 138dafd61cc98b546a23c333f5cadd4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerRespawn
+  respawnPoint: {fileID: 0}
+  playerRigidbody: {fileID: 3319003311995503542}
+  gravityController: {fileID: 4490470682878244036}
+  gravityPullGun: {fileID: 8285744137252949467}
+  gravityCameraController: {fileID: 8684828926545674163}
 --- !u!1 &2868498808298643025
 GameObject:
   m_ObjectHideFlags: 0
@@ -881,7 +900,7 @@ MonoBehaviour:
   controller: {fileID: 4490470682878244036}
   rb: {fileID: 3319003311995503542}
   input: {fileID: 5949137920346959530}
-  maxDistance: 120
+  maxDistance: 20
   aimMask:
     serializedVersion: 2
     m_Bits: 183
@@ -896,6 +915,7 @@ MonoBehaviour:
   ignoreSameSurfaceDistance: 2
   angleNeeded: 10
   outlineLayerIndex: 7
+  debugTargeting: 0
 --- !u!114 &8684828926545674163
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -243,4 +243,13 @@ public class GravityPullGun : MonoBehaviour
         pulling = false;
         controller.SetPlayerUp(targetNormal);
     }
+
+    public void CancelPull()
+    {
+        pulling = false;
+        targetCollider = null;
+        targetPoint = Vector3.zero;
+        targetNormal = Vector3.zero;
+        ResetHighlight();
+    }
 }
