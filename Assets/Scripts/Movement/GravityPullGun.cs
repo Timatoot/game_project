@@ -31,8 +31,9 @@ public class GravityPullGun : MonoBehaviour
 
     [Header("Highlighting")]
     public int outlineLayerIndex = 7;
-    private GameObject lastTarget;
-    private int originalLayer;
+    private GameObject lastTargetRoot;
+    private readonly System.Collections.Generic.Dictionary<GameObject, int> originalLayers
+        = new System.Collections.Generic.Dictionary<GameObject, int>();
 
     [Header("Debug")]
     public bool debugTargeting;
@@ -69,22 +70,40 @@ public class GravityPullGun : MonoBehaviour
 
     private void ApplyHighlight(GameObject target)
     {
-        if (target == lastTarget) return;
+        GameObject root = target.transform.parent != null ? target.transform.parent.gameObject : target;
+
+        if (root == lastTargetRoot) return;
 
         ResetHighlight();
 
-        lastTarget = target;
-        originalLayer = target.layer;
-        target.layer = outlineLayerIndex;
+        lastTargetRoot = root;
+        SetLayerRecursively(root, outlineLayerIndex, true);
     }
 
     private void ResetHighlight()
     {
-        if (lastTarget != null)
+        if (lastTargetRoot != null)
         {
-            lastTarget.layer = originalLayer;
-            lastTarget = null;
+            foreach (var kvp in originalLayers)
+            {
+                if (kvp.Key != null)
+                    kvp.Key.layer = kvp.Value;
+            }
+
+            originalLayers.Clear();
+            lastTargetRoot = null;
         }
+    }
+
+    private void SetLayerRecursively(GameObject obj, int newLayer, bool storeOriginal)
+    {
+        if (storeOriginal && !originalLayers.ContainsKey(obj))
+            originalLayers[obj] = obj.layer;
+
+        obj.layer = newLayer;
+
+        foreach (Transform child in obj.transform)
+            SetLayerRecursively(child.gameObject, newLayer, storeOriginal);
     }
 
     void FixedUpdate()
