@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::KeyItemIconLib
   entries:
   - keyID: key1
-    icon: {fileID: 1915080490, guid: 1a0cecb4b6c2511409764c12f4e8165d, type: 3}
+    icon: {fileID: -18954320, guid: 1a0cecb4b6c2511409764c12f4e8165d, type: 3}
   - keyID: key2
     icon: {fileID: 363724357, guid: 1a0cecb4b6c2511409764c12f4e8165d, type: 3}
+  - keyID: key3
+    icon: {fileID: 1527108064, guid: 1a0cecb4b6c2511409764c12f4e8165d, type: 3}
