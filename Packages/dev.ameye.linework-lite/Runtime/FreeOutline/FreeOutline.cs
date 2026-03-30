@@ -24,13 +24,19 @@ namespace LineworkLite.FreeOutline
         {
             private FreeOutlineSettings settings;
             private Material mask, outlineBase, clear;
+#if UNITY_6000_0_OR_NEWER
+#else
             private readonly ProfilingSampler maskSampler, outlineSampler;
-
+#endif
+            
             public FreeOutlinePass()
             {
                 profilingSampler = new ProfilingSampler(nameof(FreeOutlinePass));
+#if UNITY_6000_0_OR_NEWER
+#else
                 maskSampler = new ProfilingSampler(ShaderPassName.Mask);
                 outlineSampler = new ProfilingSampler(ShaderPassName.Outline);
+#endif
             }
             
             public bool Setup(ref FreeOutlineSettings freeOutlineSettings, ref Material maskMaterial, ref Material outlineMaterial, ref Material clearMaterial)
@@ -139,8 +145,8 @@ namespace LineworkLite.FreeOutline
 #if UNITY_6000_0_OR_NEWER
             private class PassData
             {
-                internal List<RendererListHandle> MaskRendererListHandles = new();
-                internal readonly List<RendererListHandle> OutlineRendererListHandles = new();
+                internal readonly List<RendererListHandle> maskRendererListHandles = new();
+                internal readonly List<RendererListHandle> outlineRendererListHandles = new();
             }
             
             public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -155,7 +161,7 @@ namespace LineworkLite.FreeOutline
                     builder.SetRenderAttachmentDepth(resourceData.activeDepthTexture);
                 
                     InitMaskRendererList(renderGraph, frameData, ref passData);
-                    foreach (var rendererListHandle in passData.MaskRendererListHandles)
+                    foreach (var rendererListHandle in passData.maskRendererListHandles)
                     {
                         builder.UseRendererList(rendererListHandle);
                     }
@@ -164,7 +170,7 @@ namespace LineworkLite.FreeOutline
                     
                     builder.SetRenderFunc((PassData data, RasterGraphContext context) =>
                     {
-                        foreach (var handle in data.MaskRendererListHandles)
+                        foreach (var handle in data.maskRendererListHandles)
                         {
                             context.cmd.DrawRendererList(handle);
                         }
@@ -179,7 +185,7 @@ namespace LineworkLite.FreeOutline
                     builder.SetRenderAttachmentDepth(resourceData.activeDepthTexture);
 
                     InitOutlineRendererLists(renderGraph, frameData, ref passData);
-                    foreach (var rendererListHandle in passData.OutlineRendererListHandles)
+                    foreach (var rendererListHandle in passData.outlineRendererListHandles)
                     {
                         builder.UseRendererList(rendererListHandle);
                     }
@@ -188,7 +194,7 @@ namespace LineworkLite.FreeOutline
 
                     builder.SetRenderFunc((PassData data, RasterGraphContext context) =>
                     {
-                        foreach (var handle in data.OutlineRendererListHandles)
+                        foreach (var handle in data.outlineRendererListHandles)
                         {
                             context.cmd.DrawRendererList(handle);
                         }
@@ -202,7 +208,7 @@ namespace LineworkLite.FreeOutline
 
             private void InitMaskRendererList(RenderGraph renderGraph, ContextContainer frameData, ref PassData passData)
             {
-                passData.MaskRendererListHandles.Clear();
+                passData.maskRendererListHandles.Clear();
                 
                 var renderingData = frameData.Get<UniversalRenderingData>();
                 var cameraData = frameData.Get<UniversalCameraData>();
@@ -244,13 +250,13 @@ namespace LineworkLite.FreeOutline
                     var handle = new RendererListHandle();
                     RenderUtils.CreateRendererListWithRenderStateBlock(renderGraph, ref renderingData.cullResults, drawingSettings, filteringSettings, renderStateBlock,
                         ref handle);
-                    passData.MaskRendererListHandles.Add(handle);
+                    passData.maskRendererListHandles.Add(handle);
                 }
             }
 
             private void InitOutlineRendererLists(RenderGraph renderGraph, ContextContainer frameData, ref PassData passData)
             {
-                passData.OutlineRendererListHandles.Clear();
+                passData.outlineRendererListHandles.Clear();
 
                 var renderingData = frameData.Get<UniversalRenderingData>();
                 var cameraData = frameData.Get<UniversalCameraData>();
@@ -305,11 +311,11 @@ namespace LineworkLite.FreeOutline
                     var handle = new RendererListHandle();
                     RenderUtils.CreateRendererListWithRenderStateBlock(renderGraph, ref renderingData.cullResults, drawingSettings, filteringSettings, renderStateBlock,
                         ref handle);
-                    passData.OutlineRendererListHandles.Add(handle);
+                    passData.outlineRendererListHandles.Add(handle);
 
                 }
             }
-#endif
+#else
             private RTHandle cameraDepthRTHandle;
             
             #pragma warning disable 618, 672
@@ -456,7 +462,8 @@ namespace LineworkLite.FreeOutline
                 
                 cameraDepthRTHandle = null;
             }
-
+#endif
+            
             public void Dispose()
             {
                 settings = null; // de-reference settings to allow them to be freed from memory
@@ -513,6 +520,8 @@ namespace LineworkLite.FreeOutline
             if (render) renderer.EnqueuePass(freeOutlinePass);
         }
         
+#if UNITY_6000_0_OR_NEWER
+#else
         #pragma warning disable 618, 672
         public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
         {
@@ -522,11 +531,12 @@ namespace LineworkLite.FreeOutline
             freeOutlinePass.SetTarget(renderer.cameraDepthTargetHandle);
         }
         #pragma warning restore 618, 672
+#endif
         
         /// <summary>
         /// Clean up resources allocated to the Scriptable Renderer Feature such as materials.
         /// </summary>
-        override protected void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             freeOutlinePass?.Dispose();
             freeOutlinePass = null;
