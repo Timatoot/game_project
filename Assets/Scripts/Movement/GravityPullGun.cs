@@ -38,6 +38,10 @@ public class GravityPullGun : MonoBehaviour
     [Header("Debug")]
     public bool debugTargeting;
 
+    public bool IsPulling => pulling;
+    public System.Action<float> PullStarted;
+    public System.Action PullEnded;
+
     private bool pulling;
     private Collider targetCollider;
     private Vector3 targetPoint;
@@ -178,6 +182,11 @@ public class GravityPullGun : MonoBehaviour
         targetPoint = chosen.point;
         targetNormal = chosen.normal;
 
+        if (rb != null)
+            PullStarted?.Invoke(Vector3.Distance(rb.position, chosen.point));
+        else
+            PullStarted?.Invoke(0f);
+
         if (hopOnPull)
             DoPullHop();
     }
@@ -259,12 +268,18 @@ public class GravityPullGun : MonoBehaviour
 
     private void FinishPull()
     {
+        if (pulling)
+            PullEnded?.Invoke();
+
         pulling = false;
         controller.SetPlayerUp(targetNormal);
     }
 
     public void CancelPull()
     {
+        if (pulling)
+            PullEnded?.Invoke();
+
         pulling = false;
         targetCollider = null;
         targetPoint = Vector3.zero;
