@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Levels/FallingBuilding.unity
     guid: fec9e642b39f5214db264b0d1338c5b3
+  - enabled: 1
+    path: Assets/Scenes/Levels/Level2.unity
+    guid: 2f22cc6d205d3f545ab846b45e7d3c63
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
