@@ -6,6 +6,9 @@ using UnityEngine;
 
 public class KeyItem : MonoBehaviour
 {
+    [SerializeField] private AudioClip pickupClip;
+    [SerializeField] [Range(0f, 1f)] private float pickupVolume = 1f;
+
     [Header("Settings")]
     public string keyID;
     public float rotationSpeed = 50f;
@@ -47,6 +50,9 @@ public class KeyItem : MonoBehaviour
 
         var col = GetComponent<Collider>();
         if (col) col.enabled = false;
+
+        if (pickupClip != null)
+            AudioSource.PlayClipAtPoint(pickupClip, transform.position, pickupVolume);
 
         Destroy(gameObject);
     }

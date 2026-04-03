@@ -153,6 +153,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 656b8ed0a670ec54fb25322fe6ebc06b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GravityKey
+  pickupClip: {fileID: 8300000, guid: a6abf0bc94b4dccb8a31d03dde1958c7, type: 3}
+  pickupVolume: 1
   keyID: 
   rotationSpeed: 50
   bobSpeed: 2

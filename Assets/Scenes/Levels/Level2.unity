@@ -5181,6 +5181,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 5670759955624343176, guid: af411af04fdc1964392fd284a1c99294, type: 3}
+      propertyPath: m_Volume
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6805461291832972089, guid: af411af04fdc1964392fd284a1c99294, type: 3}
       propertyPath: respawnPoint
       value: 
