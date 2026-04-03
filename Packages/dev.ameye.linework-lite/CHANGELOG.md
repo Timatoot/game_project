@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Headers should be listed in this order: Added, Changed, Deprecated, Removed, Fixed, Security -->
 
+## [1.1.1] - 2025-03-26
+
+### Fixed
+
+- Unity 6.4: Fixed console errors
+
 ## [1.1.0] - 2025-09-24
 
 ### Fixed

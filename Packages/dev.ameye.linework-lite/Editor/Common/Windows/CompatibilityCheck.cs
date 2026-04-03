@@ -140,7 +140,7 @@ namespace LineworkLite.Editor.Common.Windows
                     paddingLeft = 2
                 }
             };
-            var versionLabel = new Label("1.1.0 • September 2025")
+            var versionLabel = new Label("1.1.1 • March 2026")
             {
                 style =
                 {
